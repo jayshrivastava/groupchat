@@ -9,6 +9,8 @@ import (
 	"flag"
 	"syscall"
 	"time"
+	"os/signal"
+	"sync"
 	chat "./chat"
 )
 
@@ -81,6 +83,17 @@ func Logout(client chat.ChatClient, cm *ClientMeta) {
 
 }
 
+func LogoutHandler(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) {
+	defer wg.Done()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	_ = <-sigs
+	
+	Logout(client, cm)
+}
+
 func main() {
 
 	// parse flags
@@ -97,11 +110,16 @@ func main() {
 	// client login
 	Login(client, &clientMeta)
 
-	Logout(client, &clientMeta)
+	// create waitgroup and dispatch threads
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	
+	// register signal handler for logout
+	go LogoutHandler(client, &wg, &clientMeta)
 
 	// message sending thread
 
 	// message receiving thread
 
-	// register signal handler for logout
+	wg.Wait()
 }
