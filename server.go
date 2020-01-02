@@ -10,6 +10,7 @@ import (
 	"os"
 	"crypto/rand"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	chat "./chat"
 )
 
@@ -59,6 +60,7 @@ func GenerateToken() string {
 }
 
 func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.LoginResponse, error) {
+	// write lock
 	s.ClientLog.Mutex.Lock()
 
 	if _, found := s.ClientLog.ClientChannels[req.Username]; found {
@@ -76,6 +78,28 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 	return &chat.LoginResponse{Token: token}, nil
 }
 
+func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.LogoutResponse, error) {
+	
+	token, err := s.GetTokenFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Missing token provided for %s", req.Username)
+	}
+	
+	s.ClientLog.Mutex.Lock()
+
+	if _, found := s.ClientLog.ClientTokens[req.Username]; !found || s.ClientLog.ClientTokens[req.Username] != token {
+		s.ClientLog.Mutex.Unlock()
+		return nil, fmt.Errorf("Invalid Token for %s", req.Username)
+	}
+
+	delete(s.ClientLog.ClientChannels, req.Username)
+	delete(s.ClientLog.ClientTokens, req.Username)
+	
+	s.ClientLog.Mutex.Unlock()
+
+	return &chat.LogoutResponse{}, nil
+}
+
 func main() {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:5000"))
@@ -88,4 +112,11 @@ func main() {
 	server.Serve(lis)
 }
 
-// API METHODS
+func (s *Server) GetTokenFromContext(ctx context.Context) (string, error) {
+	meta, ok := metadata.FromIncomingContext(ctx)
+	if  value, found := meta["token"]; !found || len(value) == 0 || !ok {
+		return "", fmt.Errorf("Missing Token in Request")
+	}
+
+	return meta["token"][0], nil
+}

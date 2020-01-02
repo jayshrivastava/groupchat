@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"os"
 	"flag"
 	"syscall"
@@ -16,7 +17,7 @@ type ClientMeta struct {
 	Password *string
 	Host *string
 	Group * string
-	Token *string
+	Token string
 }
 
 func ClientError(e error) {
@@ -40,7 +41,7 @@ func GetClientMeta() (ClientMeta) {
 	return cm
 }
 
-func Login(client chat.ChatClient, cm ClientMeta) {
+func Login(client chat.ChatClient, cm *ClientMeta) {
 
 	req := chat.LoginRequest{
 		Username: *cm.Username,
@@ -50,10 +51,32 @@ func Login(client chat.ChatClient, cm ClientMeta) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	_, err := client.Login(ctx, &req)
+	res, err := client.Login(ctx, &req)
 
 	if err != nil {
 		ClientError(fmt.Errorf("Login Failed: %s", err))
+	}
+
+	cm.Token = res.Token
+
+}
+
+func Logout(client chat.ChatClient, cm *ClientMeta) {
+
+	req := chat.LogoutRequest{
+		Username: *cm.Username,
+	}
+
+	meta := metadata.New(map[string]string{"token": cm.Token})
+
+	ctx := metadata.NewOutgoingContext(context.Background(), meta)
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+
+	defer cancel()
+	_, err := client.Logout(ctx, &req)
+
+	if err != nil {
+		ClientError(fmt.Errorf("Logout Failed: %s", err))
 	}
 
 }
@@ -62,7 +85,6 @@ func main() {
 
 	// parse flags
 	clientMeta := GetClientMeta()
-	fmt.Printf("USERNAME %s\n", *clientMeta.Username)
 	
 	// register server
 	conn, err := grpc.Dial("localhost:5000", grpc.WithInsecure())
@@ -73,7 +95,9 @@ func main() {
 	client := chat.NewChatClient(conn)
 
 	// client login
-	Login(client, clientMeta)
+	Login(client, &clientMeta)
+
+	Logout(client, &clientMeta)
 
 	// message sending thread
 

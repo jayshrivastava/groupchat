@@ -27,7 +27,7 @@ message LoginResponse {
 }
 
 message LogoutRequest {
-    string Token = 1;
+    string Username = 1;
 }
 
 message LogoutResponse {}
