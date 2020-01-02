@@ -1,59 +1,62 @@
+/* 
+    Original Author: https://github.com/rodaine
+    Source: https://github.com/rodaine/grpc-chat
+
+    Modified by: Jay Shrivastava https://github.com/jayshrivastava
+*/
+
 syntax = "proto3";
 package chat;
 
+import "google/protobuf/timestamp.proto";
 
 service Chat {
-    // rpc GetFeature(Point) returns (Feature) {}
-
-    // CLIENTSIDE STREAM - client sends a stream of requests and server reads them. then the client waits for a response
-    // rpc RecordRoute(stream Point) returns (RouteSummary) {}
-
-    // BIDIRECTIONAL STREAM - while it is open, the client and server can sent/recieve messages
-    // rpc RouteChat(stream RouteNote) returns (stream RouteNote) {}
-    
-    // SIMPLE RPC - param is the client request and the return type is the server response
-    rpc GetItem(ItemKey) returns (ItemValue) {}
-
-    // SERVERSIDE STREAM - server sends a stream of responses and the client reads them until there are no more 
-    rpc ListItems(Range) returns (stream ItemValue) {}
-
-    // POST - returns original message
-    rpc SendChatMessage(ChatMessage) returns (ChatMessage) {}
-
-    
+ rpc Login(LoginRequest) returns (LoginResponse) {}
+ rpc Logout(LogoutRequest) returns (LogoutResponse) {}
+ rpc Stream(stream StreamRequest) returns (stream StreamResponse) {}
 }
 
-message Range {
-    int32 StartIndex = 1;
-    int32 EndIndex = 2;
+message LoginRequest {
+    string Password = 1;
+    string Username = 2;
+    string Group = 3; 
 }
 
-message ItemKey {
-    int32 Index = 1;
+message LoginResponse {
+    string Token = 1;
 }
 
-message ItemValue {
-    string Value = 1;
+message LogoutRequest {
+    string Token = 1;
 }
 
-message Item {
-    ItemKey Key = 1;
-    ItemValue Value = 2;
+message LogoutResponse {}
+
+message StreamResponse {
+    google.protobuf.Timestamp Timestamp = 1;
+
+    oneof Event {
+        Login ClientLogin = 2;
+        Logout ClientLogout = 3;
+        Message ClientMessage = 4;
+        Shutdown ServerShutdown = 5;
+    }
+    message Login {
+        string Username = 2;
+    }
+    message Logout {
+        string Username = 2;
+    }
+    message Message {
+        string Username = 2;
+        string Message = 3;
+        string Group = 4;
+    }
+    message Shutdown {}
 }
 
-message Group {
-    int32 GroupId = 1;
-    string Groupname = 2; // unique
-}
-
-message User {
-    int32 UserId = 1;
-    string Username = 2; // unique
-}
-
-message ChatMessage {
-    string Text = 1;
-    string Date = 2;
-    User Sender = 3;
-    Group Group = 4;
+message StreamRequest {
+    string Username = 2;
+    string Message = 3;
+    string Group = 4;
 }

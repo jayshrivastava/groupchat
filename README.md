@@ -1,2 +1,2 @@
 # terminal-chat
-Terminal-based chat server and client written in Go. Make with gRPC &amp; Kafka.
+Terminal-based chat server and client written in Go * gRPC.
