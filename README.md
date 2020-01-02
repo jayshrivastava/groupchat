@@ -1,2 +1,2 @@
 # terminal-chat
-Terminal-based chat server and client written in Go * gRPC.
+Terminal-based chat server and client written in Go and gRPC.

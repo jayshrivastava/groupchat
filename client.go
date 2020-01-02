@@ -11,6 +11,8 @@ import (
 	"time"
 	"os/signal"
 	"sync"
+	// "io"
+	// "bufio"
 	chat "./chat"
 )
 
@@ -94,6 +96,59 @@ func LogoutHandler(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) {
 	Logout(client, cm)
 }
 
+// func Stream(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) error {
+	
+// 	meta := metadata.New(map[string]string{"token": cm.Token})
+// 	ctx := metadata.NewOutgoingContext(context.Background(), meta)
+
+// 	stream, err := client.Stream(ctx)
+
+// 	if err != nil {
+// 		ClientError(fmt.Errorf("Could not connect to stream: %s", err))
+// 	}
+// 	defer stream.CloseSend()
+
+// 	go ClientSender(stream, cm)
+// 	return ClientReceiver(stream, cm)
+// }
+
+// func ClientSender(stream chat.Chat_StreamClient, cm *ClientMeta) {
+
+// 	reader := bufio.NewReader(os.Stdin)
+// 	for {
+// 		text, _ := reader.ReadString('\n')
+		
+// 		req := chat.StreamRequest{
+// 			Username: *cm.Username, 
+// 			Group: *cm.Group,
+// 			Message: text,
+// 		}
+// 		stream.Send(&req)
+// 		fmt.Printf("sent\n")
+// 	}
+// }
+
+// func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
+
+
+// 	for {
+// 		res, err := stream.Recv()
+
+// 		if err == io.EOF {
+// 			continue
+// 		}
+		
+// 		switch evt := res.Event.(type) {
+// 		case *chat.StreamResponse_ClientMessage:
+// 			fmt.Printf("%s %s\n", evt.ClientMessage.Username, evt.ClientMessage.Message)
+// 		default:
+			
+// 		}
+// 	}
+
+// 	return nil
+// }
+
 func main() {
 
 	// parse flags
@@ -112,14 +167,14 @@ func main() {
 
 	// create waitgroup and dispatch threads
 	wg := sync.WaitGroup{}
-	wg.Add(1)
 	
 	// register signal handler for logout
+	wg.Add(1)
 	go LogoutHandler(client, &wg, &clientMeta)
 
-	// message sending thread
-
-	// message receiving thread
+	// streaming thread
+	// wg.Add(1)
+	// go Stream(client, &wg, &clientMeta)
 
 	wg.Wait()
 }
