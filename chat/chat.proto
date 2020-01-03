@@ -39,7 +39,6 @@ message StreamResponse {
         Login ClientLogin = 2;
         Logout ClientLogout = 3;
         Message ClientMessage = 4;
-        Shutdown ServerShutdown = 5;
     }
     message Login {
         string Username = 2;

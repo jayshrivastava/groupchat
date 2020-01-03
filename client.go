@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"github.com/golang/protobuf/ptypes"
 	"os"
 	"flag"
 	"syscall"
@@ -127,13 +128,10 @@ func ClientSender(stream chat.Chat_StreamClient, cm *ClientMeta) {
 			Message: text,
 		}
 		stream.Send(&req)
-		fmt.Println(req)
 	}
 }
 
 func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
-
-	fmt.Println("reciever started");
 
 	for {
 		res, err := stream.Recv()
@@ -144,7 +142,11 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 		
 		switch evt := res.Event.(type) {
 		case *chat.StreamResponse_ClientMessage:
-			fmt.Printf("%s %s\n", evt.ClientMessage.Username, evt.ClientMessage.Message)
+			timestamp, err := ptypes.Timestamp(res.Timestamp) 
+			if err != nil {
+				timestamp = time.Now()
+			}
+			fmt.Printf("%s [%s] %s\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientMessage.Username, evt.ClientMessage.Message)
 		default:
 			
 		}

@@ -134,8 +134,6 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 			break
 		}
 
-		fmt.Println(req)
-
 		username, group, message := req.Username, req.Group, req.Message
 
 		s.ClientLog.Mutex.RLock()
@@ -143,8 +141,6 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 			s.ClientLog.Mutex.RUnlock()
 			break
 		}
-
-		fmt.Println(username, group, message)
 
 		res := chat.StreamResponse{
 			Timestamp: ptypes.TimestampNow(),
