@@ -11,8 +11,9 @@ import (
 	"time"
 	"os/signal"
 	"sync"
-	// "io"
-	// "bufio"
+	"io"
+	"bufio"
+	"strings"
 	chat "./chat"
 )
 
@@ -89,65 +90,68 @@ func LogoutHandler(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) {
 	defer wg.Done()
 
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT)
 
 	_ = <-sigs
 	
 	Logout(client, cm)
+	syscall.Kill(os.Getpid(), syscall.SIGTERM)
 }
 
-// func Stream(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) error {
+func Stream(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) error {
 	
-// 	meta := metadata.New(map[string]string{"token": cm.Token})
-// 	ctx := metadata.NewOutgoingContext(context.Background(), meta)
+	meta := metadata.New(map[string]string{"token": cm.Token})
+	ctx := metadata.NewOutgoingContext(context.Background(), meta)
 
-// 	stream, err := client.Stream(ctx)
+	stream, err := client.Stream(ctx)
 
-// 	if err != nil {
-// 		ClientError(fmt.Errorf("Could not connect to stream: %s", err))
-// 	}
-// 	defer stream.CloseSend()
+	if err != nil {
+		ClientError(fmt.Errorf("Could not connect to stream: %s", err))
+	}
+	defer stream.CloseSend()
 
-// 	go ClientSender(stream, cm)
-// 	return ClientReceiver(stream, cm)
-// }
+	go ClientSender(stream, cm)
+	return ClientReceiver(stream, cm)
+}
 
-// func ClientSender(stream chat.Chat_StreamClient, cm *ClientMeta) {
+func ClientSender(stream chat.Chat_StreamClient, cm *ClientMeta) {
 
-// 	reader := bufio.NewReader(os.Stdin)
-// 	for {
-// 		text, _ := reader.ReadString('\n')
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		text, _ := reader.ReadString('\n')
+		text = strings.TrimSuffix(text, "\n")
 		
-// 		req := chat.StreamRequest{
-// 			Username: *cm.Username, 
-// 			Group: *cm.Group,
-// 			Message: text,
-// 		}
-// 		stream.Send(&req)
-// 		fmt.Printf("sent\n")
-// 	}
-// }
+		req := chat.StreamRequest{
+			Username: *cm.Username, 
+			Group: *cm.Group,
+			Message: text,
+		}
+		stream.Send(&req)
+		fmt.Println(req)
+	}
+}
 
-// func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
+func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 
+	fmt.Println("reciever started");
 
-// 	for {
-// 		res, err := stream.Recv()
+	for {
+		res, err := stream.Recv()
 
-// 		if err == io.EOF {
-// 			continue
-// 		}
+		if err == io.EOF {
+			continue
+		}
 		
-// 		switch evt := res.Event.(type) {
-// 		case *chat.StreamResponse_ClientMessage:
-// 			fmt.Printf("%s %s\n", evt.ClientMessage.Username, evt.ClientMessage.Message)
-// 		default:
+		switch evt := res.Event.(type) {
+		case *chat.StreamResponse_ClientMessage:
+			fmt.Printf("%s %s\n", evt.ClientMessage.Username, evt.ClientMessage.Message)
+		default:
 			
-// 		}
-// 	}
+		}
+	}
 
-// 	return nil
-// }
+	return nil
+}
 
 func main() {
 
@@ -173,8 +177,8 @@ func main() {
 	go LogoutHandler(client, &wg, &clientMeta)
 
 	// streaming thread
-	// wg.Add(1)
-	// go Stream(client, &wg, &clientMeta)
+	wg.Add(1)
+	go Stream(client, &wg, &clientMeta)
 
 	wg.Wait()
 }

@@ -8,11 +8,11 @@ import (
 	"net"
 	"syscall"
 	"os"
-	// "io"
+	"io"
 	"crypto/rand"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	// "github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes"
 	chat "./chat"
 )
 
@@ -106,74 +106,79 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 	return &chat.LogoutResponse{}, nil
 }
 
-// func (s *Server) Stream(stream chat.Chat_StreamServer) error {
-// 	token, err := s.GetTokenFromContext(stream.Context())
+func (s *Server) Stream(stream chat.Chat_StreamServer) error {
+	token, err := s.GetTokenFromContext(stream.Context())
+
+	if err == nil {
+		wg := sync.WaitGroup{}
+
+		wg.Add(1)
+		go reciever(s, stream, &wg, token)
+
+		wg.Add(1)
+		go sender(s, stream, &wg, token)
+
+		wg.Wait()
+	}
+	return nil
+}
+
+func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token string) {
+	defer wg.Done()
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			break
+		}
+
+		fmt.Println(req)
+
+		username, group, message := req.Username, req.Group, req.Message
+
+		s.ClientLog.Mutex.RLock()
+		if _, found := s.ClientLog.ClientTokens[token]; !found || s.ClientLog.ClientTokens[token] != req.Username {
+			s.ClientLog.Mutex.RUnlock()
+			break
+		}
+
+		fmt.Println(username, group, message)
+
+		res := chat.StreamResponse{
+			Timestamp: ptypes.TimestampNow(),
+			Event: &chat.StreamResponse_ClientMessage{
+				&chat.StreamResponse_Message{
+					Username: username,
+					Group: group,
+					Message: message,
+				},
+			},
+		}
+
+		for username, stream := range s.ClientLog.ClientChannels {
+			if s.ClientLog.ClientGroups[username] == group {
+				stream <- res
+			}
+		}
+
+		s.ClientLog.Mutex.RUnlock()
+	}
+}
+
+func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token string) {
+	defer wg.Done()
+
+	s.ClientLog.Mutex.RLock()
+	username := s.ClientLog.ClientTokens[token]
+	s.ClientLog.Mutex.RUnlock()
 	
-// 	if err != nil {
-// 		wg := sync.WaitGroup{}
-
-// 		wg.Add(1)
-// 		go reciever(s, stream, &wg, token)
-
-// 		wg.Add(1)
-// 		go sender(s, stream, &wg, token)
-
-// 		wg.Wait()
-// 	}
-// 	return nil
-// }
-
-// func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token string) {
-// 	defer wg.Done()
-// 	for {
-// 		req, err := stream.Recv()
-// 		if err == io.EOF {
-// 			continue
-// 		} else if err != nil {
-// 			break
-// 		}
-
-// 		username, group, message := req.Username, req.Group, req.Message
-
-// 		s.ClientLog.Mutex.RLock()
-// 		if _, found := s.ClientLog.ClientTokens[token]; !found || s.ClientLog.ClientTokens[token] != req.Username {
-// 			s.ClientLog.Mutex.RUnlock()
-// 			break
-// 		}
-
-// 		res := chat.StreamResponse{
-// 			Timestamp: ptypes.TimestampNow(),
-// 			Event: &chat.StreamResponse_ClientMessage{
-// 				&chat.StreamResponse_Message{
-// 					Username: username,
-// 					Group: group,
-// 					Message: message,
-// 				},
-// 			},
-// 		}
-
-// 		for username, stream := range s.ClientLog.ClientChannels {
-// 			if s.ClientLog.ClientGroups[username] == group {
-// 				stream <- res
-// 			}
-// 		}
-
-// 		s.ClientLog.Mutex.RUnlock()
-// 	}
-// }
-
-// func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token string) {
-// 	defer wg.Done()
-
-// 	s.ClientLog.Mutex.RLock()
-// 	username := s.ClientLog.ClientTokens[token]
-// 	s.ClientLog.Mutex.RUnlock()
-	
-// 	for {
-// 		res := <- s.ClientLog.ClientChannels[username]
-// 		stream.Send(&res)
-// 	}
-// }
+	for {
+		res := <- s.ClientLog.ClientChannels[username]
+		stream.Send(&res)
+	}
+}
 
 func main() {
 
