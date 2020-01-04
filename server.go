@@ -1,18 +1,21 @@
 package main 
 
 import (
-	"context"
-	"flag"
-	"sync"
-	"fmt"
-	"net"
+	"context" 
+	"crypto/rand" 
+	"flag" 
+	"fmt" 
+	"io" 
+	"net" 
+	"os" 
+	"sync" 
 	"syscall"
-	"os"
-	"io"
-	"crypto/rand"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
 	"github.com/golang/protobuf/ptypes"
+	
 	chat "./chat"
 )
 
@@ -27,7 +30,8 @@ type ClientLog struct {
 	ClientChannels map[string]chan chat.StreamResponse 
 	ClientTokens map [string]string
 	ClientGroups map [string]string
-	Mutex sync.RWMutex
+	// Readers/Writers lock on all maps
+	Mutex sync.RWMutex 
 }
 
 func ServerError(e error) {
@@ -74,11 +78,35 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 
 	token := GenerateToken()
 
-	s.ClientLog.ClientChannels[req.Username] = make(chan chat.StreamResponse)
+	s.ClientLog.ClientChannels[req.Username] = make(chan chat.StreamResponse, 5)
 	s.ClientLog.ClientTokens[token] = req.Username
 	s.ClientLog.ClientGroups[req.Username] = req.Group
 
 	s.ClientLog.Mutex.Unlock()
+
+	s.ClientLog.Mutex.RLock()
+
+	res := chat.StreamResponse{
+		Timestamp: ptypes.TimestampNow(),
+		Event: &chat.StreamResponse_ClientLogin{
+			&chat.StreamResponse_Login{
+				Username: req.Username,
+				Group: req.Group,
+			},
+		},
+	}
+
+	for username, stream := range s.ClientLog.ClientChannels {
+		fmt.Println(username)
+		if s.ClientLog.ClientGroups[username] == req.Group {
+			stream <- res
+		}
+	}
+
+	s.ClientLog.Mutex.RUnlock()
+
+	fmt.Println("done")
+
 
 	return &chat.LoginResponse{Token: token}, nil
 }
@@ -153,9 +181,9 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 			},
 		}
 
-		for username, stream := range s.ClientLog.ClientChannels {
+		for username, clientChannel := range s.ClientLog.ClientChannels {
 			if s.ClientLog.ClientGroups[username] == group {
-				stream <- res
+				clientChannel <- res
 			}
 		}
 
@@ -168,10 +196,11 @@ func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token 
 
 	s.ClientLog.Mutex.RLock()
 	username := s.ClientLog.ClientTokens[token]
+	clientChannel := s.ClientLog.ClientChannels[username]
 	s.ClientLog.Mutex.RUnlock()
 	
 	for {
-		res := <- s.ClientLog.ClientChannels[username]
+		res := <- clientChannel
 		stream.Send(&res)
 	}
 }

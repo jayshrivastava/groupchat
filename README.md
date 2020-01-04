@@ -19,7 +19,7 @@ ex. `go run client.go -u "jay" -g "my group" -p "password -h "0.0.0.0:5000"`
 `export PATH=$PATH:$HOME/go/bin`
 
 <b> Generate Protocol Bufffer </b>
-`protoc -I chat/ chat/chat.proto --go_out=plugins=grpc:chat `
+`protoc -I chat/ chat/chat.proto --go_out=plugins=grpc:chat`
 
 ### References 
 

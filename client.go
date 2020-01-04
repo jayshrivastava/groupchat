@@ -1,20 +1,23 @@
 package main
 
 import (
+	"bufio"
 	"context"
-	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
-	"github.com/golang/protobuf/ptypes"
-	"os"
 	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
-	"os/signal"
-	"sync"
-	"io"
-	"bufio"
-	"strings"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+
+	"github.com/golang/protobuf/ptypes"
+
 	chat "./chat"
 )
 
@@ -146,7 +149,13 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 			if err != nil {
 				timestamp = time.Now()
 			}
-			fmt.Printf("%s [%s] %s\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientMessage.Username, evt.ClientMessage.Message)
+			fmt.Printf("[%s] (%s) %s\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientMessage.Username, evt.ClientMessage.Message)
+		case *chat.StreamResponse_ClientLogin:
+			timestamp, err := ptypes.Timestamp(res.Timestamp) 
+			if err != nil {
+				timestamp = time.Now()
+			}
+			fmt.Printf("[%s] (%s joined %s)\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientLogin.Username, evt.ClientLogin.Group)
 		default:
 			
 		}
