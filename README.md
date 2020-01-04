@@ -2,7 +2,7 @@
 
 A terminal-based chat server and client written in Go using gRPC. 
 
-This project leverages concurrency constructs in Go as well as socket-like bidirectional streaming in gRPC to recieve and dispatch messages between clients.
+This project leverages concurrency constructs in Go as well as socket-like bidirectional streaming in gRPC to exchange messages between clients.
 
 ## Usage
 <b> Start Server </b>
