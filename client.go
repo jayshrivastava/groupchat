@@ -156,6 +156,12 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 				timestamp = time.Now()
 			}
 			fmt.Printf("[%s] (%s joined %s)\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientLogin.Username, evt.ClientLogin.Group)
+		case *chat.StreamResponse_ClientLogout:
+			timestamp, err := ptypes.Timestamp(res.Timestamp) 
+			if err != nil {
+				timestamp = time.Now()
+			}
+			fmt.Printf("[%s] (%s left %s)\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientLogout.Username, evt.ClientLogout.Group)
 		default:
 			
 		}

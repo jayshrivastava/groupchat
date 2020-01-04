@@ -46,6 +46,7 @@ message StreamResponse {
     }
     message Logout {
         string Username = 2;
+        string Group = 3;
     }
     message Message {
         string Username = 2;

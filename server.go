@@ -84,8 +84,8 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 
 	s.ClientLog.Mutex.Unlock()
 
-	s.ClientLog.Mutex.RLock()
 
+	// Send login notification
 	res := chat.StreamResponse{
 		Timestamp: ptypes.TimestampNow(),
 		Event: &chat.StreamResponse_ClientLogin{
@@ -96,17 +96,13 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 		},
 	}
 
+	s.ClientLog.Mutex.RLock()
 	for username, stream := range s.ClientLog.ClientChannels {
-		fmt.Println(username)
 		if s.ClientLog.ClientGroups[username] == req.Group {
 			stream <- res
 		}
 	}
-
 	s.ClientLog.Mutex.RUnlock()
-
-	fmt.Println("done")
-
 
 	return &chat.LoginResponse{Token: token}, nil
 }
@@ -125,11 +121,32 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 		return nil, fmt.Errorf("Invalid Token for %s", req.Username)
 	}
 
+	group := s.ClientLog.ClientGroups[req.Username]
+
 	delete(s.ClientLog.ClientChannels, req.Username)
 	delete(s.ClientLog.ClientTokens, token)
 	delete(s.ClientLog.ClientGroups, req.Username)
 	
 	s.ClientLog.Mutex.Unlock()
+
+	// Send logout notification
+	res := chat.StreamResponse{
+		Timestamp: ptypes.TimestampNow(),
+		Event: &chat.StreamResponse_ClientLogout{
+			&chat.StreamResponse_Logout{
+				Username: req.Username,
+				Group: group,
+			},
+		},
+	}
+
+	s.ClientLog.Mutex.RLock()
+	for username, stream := range s.ClientLog.ClientChannels {
+		if s.ClientLog.ClientGroups[username] == group {
+			stream <- res
+		}
+	}
+	s.ClientLog.Mutex.RUnlock()
 
 	return &chat.LogoutResponse{}, nil
 }
