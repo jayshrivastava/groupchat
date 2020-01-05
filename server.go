@@ -16,7 +16,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	
-	chat "./chat"
+	chat "github.com/jayshrivastava/gRPC-terminal-chat/proto"
 )
 
 type Server struct {
@@ -222,7 +222,7 @@ func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token 
 	}
 }
 
-func main() {
+func ServerMain() {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:5000"))
 	if err != nil {

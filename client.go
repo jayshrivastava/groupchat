@@ -18,7 +18,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 
-	chat "./chat"
+	chat "github.com/jayshrivastava/gRPC-terminal-chat/proto"
 )
 
 type ClientMeta struct {
@@ -170,11 +170,8 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 	return nil
 }
 
-func main() {
+func ClientMain(clientMeta ClientMeta) {
 
-	// parse flags
-	clientMeta := GetClientMeta()
-	
 	// register server
 	conn, err := grpc.Dial("localhost:5000", grpc.WithInsecure())
 	if err != nil {

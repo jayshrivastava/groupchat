@@ -11,7 +11,7 @@ ex. `go run server.go -p "password" -h "0.0.0.0:5000"`
 
 <b> Start Client </b>
 `go run client.go -u jayants -g beans -p test -h abcd`
-ex. `go run client.go -u "jay" -g "my group" -p "password -h "0.0.0.0:5000"`
+ex. `go run client.go -u "jay" -g "my group" -p "password" -h "0.0.0.0:5000"`
 
 
 ### Useful Commands
