@@ -3,7 +3,6 @@ package main
 import (
 	"context" 
 	"crypto/rand" 
-	"flag" 
 	"fmt" 
 	"io" 
 	"net" 
@@ -18,6 +17,11 @@ import (
 	
 	chat "github.com/jayshrivastava/gRPC-terminal-chat/proto"
 )
+
+type ServerProps struct {
+	Password *string
+	Host *string
+}
 
 type Server struct {
 	chat.UnimplementedChatServer
@@ -39,16 +43,10 @@ func ServerError(e error) {
 	syscall.Kill(os.Getpid(), syscall.SIGTERM)
 }
 
-func CreateChatServer() *Server {
+func CreateChatServer(props ServerProps) *Server {
 	server := Server{
-		Password: flag.String("p", "", "Server Password"),
-		Host: flag.String("h", "", "Host"),
-	}
-
-	flag.Parse();
-
-	if (*server.Password == "" || *server.Host == "") {
-		ServerError(fmt.Errorf("Missing Flags"))
+		Password: props.Password,
+		Host: props.Host,
 	}
 
 	server.ClientLog = &ClientLog{
@@ -222,7 +220,7 @@ func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token 
 	}
 }
 
-func ServerMain() {
+func ServerMain(props ServerProps) {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:5000"))
 	if err != nil {
@@ -230,7 +228,7 @@ func ServerMain() {
     }
 
     server := grpc.NewServer()
-	chat.RegisterChatServer(server, CreateChatServer())
+	chat.RegisterChatServer(server, CreateChatServer(props))
 	server.Serve(lis)
 }
 

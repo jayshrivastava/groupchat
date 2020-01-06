@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -25,29 +24,13 @@ type ClientMeta struct {
 	Username *string
 	Password *string
 	Host *string
-	Group * string
+	Group *string
 	Token string
 }
 
 func ClientError(e error) {
 	fmt.Printf("%s\n", e.Error())
 	syscall.Kill(os.Getpid(), syscall.SIGTERM)
-}
-
-func GetClientMeta() (ClientMeta) {
-	cm := ClientMeta{
-		Username: flag.String("u", "", "Username"),
-		Password: flag.String("p", "", "Server Password"),
-		Host: flag.String("h", "", "Host"),
-		Group: flag.String("g", "", "Username"),
-	}
-	flag.Parse();
-
-	if (*cm.Username == "" || *cm.Password == "" || *cm.Host == "" || *cm.Group == "") {
-		ClientError(fmt.Errorf("Missing Flags"))
-	}
-
-	return cm
 }
 
 func Login(client chat.ChatClient, cm *ClientMeta) {
@@ -175,7 +158,7 @@ func ClientMain(clientMeta ClientMeta) {
 	// register server
 	conn, err := grpc.Dial("localhost:5000", grpc.WithInsecure())
 	if err != nil {
-		fmt.Errorf("fail to dial: %v", err)
+		ClientError(fmt.Errorf("fail to dial: %v", err))
 	}
 	defer conn.Close()
 	client := chat.NewChatClient(conn)
