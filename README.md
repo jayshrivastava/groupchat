@@ -16,8 +16,18 @@ This project leverages concurrency constructs in Go as well as socket-like bidir
 ex. `./gRPC-terminal-chat -s -p "password" -h "0.0.0.0:5000"`
 
 <b> Start Client </b>
-`go run client.go -u jayants -g beans -p test -h abcd`
+`./gRPC-terminal-chat -u <username> -g <groupname> -p <password> -h <hostname>`
 ex. `./gRPC-terminal-chat -u "jay" -g "my group" -p "password" -h "0.0.0.0:5000"`
+
+## Docker
+<b> Build Image </b>
+`docker build -t chat`
+
+<b> Start Server </b>
+`docker run chat -p 5000:5000 -s -p "password" -h "0.0.0.0:5000"`
+
+<b> Start Client </b>
+`docker run chat -u "jay" -g "my group" -p "password" -h "0.0.0.0:5000"
 
 
 ### Useful Commands
