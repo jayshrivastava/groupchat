@@ -1,32 +1,30 @@
-# terminal-chat
-
+#terminal-chat  
 A terminal-based chat server and client written in Go using gRPC. 
 
 This project leverages concurrency constructs in Go as well as socket-like bidirectional streaming in gRPC to exchange messages between clients.
 
-## Requirements
+### Requirements  
 - go v1.13.5
 - Network must support HTTP/2
 
-## Usage
-
-<b> Install Dependencies </b>
+### Usage
+<b> Install Dependencies </b>  
 `go get -d ./...`
 
-<b> Build Executable </b>
+<b> Build Executable </b>  
 `go build`
 
-<b> Start Server </b>
-`go run server.go -p <password> -h <hostname>`
+<b> Start Server </b>  
+`go run server.go -p <password> -h <hostname>`  
 ex. `./groupchat -s -p "password" -h "0.0.0.0:5000"`
 
-<b> Start Client </b>
-`./gRPC-terminal-chat -u <username> -g <groupname> -p <password> -h <hostname>`
+<b> Start Client </b>   
+`./gRPC-terminal-chat -u <username> -g <groupname> -p <password> -h <hostname>`  
 ex. `./groupchat -u "jay" -g "my group" -p "password" -h "0.0.0.0:5000"`
 
-## Development
+### Development  
 
-<b> Generate Protocol Bufffer </b>
+<b> Generate Protocol Bufffer </b>  
 `protoc -I chat/ chat/chat.proto --go_out=plugins=grpc:chat`
 
 
