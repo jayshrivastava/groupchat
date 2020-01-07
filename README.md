@@ -19,17 +19,6 @@ ex. `./gRPC-terminal-chat -s -p "password" -h "0.0.0.0:5000"`
 `./gRPC-terminal-chat -u <username> -g <groupname> -p <password> -h <hostname>`
 ex. `./gRPC-terminal-chat -u "jay" -g "my group" -p "password" -h "0.0.0.0:5000"`
 
-## Docker
-<b> Build Image </b>
-`docker build -t chat`
-
-<b> Start Server </b>
-`docker run chat -p 5000:5000 -s -p "password" -h "0.0.0.0:5000"`
-
-<b> Start Client </b>
-`docker run chat -u "jay" -g "my group" -p "password" -h "0.0.0.0:5000"
-
-
 ### Useful Commands
 <b> Add protoc to path </b>
 `export PATH=$PATH:$HOME/go/bin`
@@ -37,7 +26,4 @@ ex. `./gRPC-terminal-chat -u "jay" -g "my group" -p "password" -h "0.0.0.0:5000"
 <b> Generate Protocol Bufffer </b>
 `protoc -I chat/ chat/chat.proto --go_out=plugins=grpc:chat`
 
-### References 
-
-Rodaine, “grpc-chat,” GitHub, 13-Oct-2017. [Online]. Available: github.com/rodaine/grpc-chat. [Accessed: 03-Jan-2020].
 
