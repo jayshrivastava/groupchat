@@ -156,7 +156,7 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 func ClientMain(clientMeta ClientMeta) {
 
 	// register server
-	conn, err := grpc.Dial("localhost:5000", grpc.WithInsecure())
+	conn, err := grpc.Dial("go-chat-terminal-server.herokuapp.com:5000", grpc.WithInsecure())
 	if err != nil {
 		ClientError(fmt.Errorf("fail to dial: %v", err))
 	}
