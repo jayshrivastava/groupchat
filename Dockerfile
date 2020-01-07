@@ -12,8 +12,6 @@ RUN go get github.com/golang/protobuf/proto \
     google.golang.org/grpc/metadata \
     google.golang.org/grpc/status
 
-EXPOSE 5000
-
 RUN go build -o main 
 
 ENTRYPOINT ["./main"]
