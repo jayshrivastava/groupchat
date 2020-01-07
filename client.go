@@ -17,7 +17,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 
-	chat "github.com/jayshrivastava/gRPC-terminal-chat/proto"
+	chat "github.com/jayshrivastava/groupchat/proto"
 )
 
 type ClientMeta struct {
