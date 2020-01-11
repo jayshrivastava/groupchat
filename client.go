@@ -28,11 +28,6 @@ type ClientMeta struct {
 	Token string
 }
 
-func ClientError(e error) {
-	fmt.Printf("%s\n", e.Error())
-	syscall.Kill(os.Getpid(), syscall.SIGTERM)
-}
-
 func Login(client chat.ChatClient, cm *ClientMeta) {
 
 	req := chat.LoginRequest{
@@ -46,7 +41,7 @@ func Login(client chat.ChatClient, cm *ClientMeta) {
 	res, err := client.Login(ctx, &req)
 
 	if err != nil {
-		ClientError(fmt.Errorf("Login Failed: %s", err))
+		Error(fmt.Errorf("Login Failed: %s", err))
 	}
 
 	cm.Token = res.Token
@@ -68,7 +63,7 @@ func Logout(client chat.ChatClient, cm *ClientMeta) {
 	_, err := client.Logout(ctx, &req)
 
 	if err != nil {
-		ClientError(fmt.Errorf("Logout Failed: %s", err))
+		Error(fmt.Errorf("Logout Failed: %s", err))
 	}
 
 }
@@ -93,7 +88,7 @@ func Stream(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) error {
 	stream, err := client.Stream(ctx)
 
 	if err != nil {
-		ClientError(fmt.Errorf("Could not connect to stream: %s", err))
+		Error(fmt.Errorf("Could not connect to stream: %s", err))
 	}
 	defer stream.CloseSend()
 
@@ -139,6 +134,9 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 				timestamp = time.Now()
 			}
 			fmt.Printf("[%s] (%s joined %s)\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientLogin.Username, evt.ClientLogin.Group)
+		case *chat.StreamResponse_ClientExisting:
+			// timestamp exists but we do not need it
+			fmt.Printf("(member %s of %s)\n", evt.ClientExisting.Username, evt.ClientExisting.Group)
 		case *chat.StreamResponse_ClientLogout:
 			timestamp, err := ptypes.Timestamp(res.Timestamp) 
 			if err != nil {
@@ -158,7 +156,7 @@ func ClientMain(clientMeta ClientMeta) {
 	// register server
 	conn, err := grpc.Dial("localhost:5000", grpc.WithInsecure())
 	if err != nil {
-		ClientError(fmt.Errorf("fail to dial: %v", err))
+		Error(fmt.Errorf("fail to dial: %v", err))
 	}
 	defer conn.Close()
 	client := chat.NewChatClient(conn)

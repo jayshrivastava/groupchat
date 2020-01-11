@@ -6,7 +6,7 @@
 */
 
 syntax = "proto3";
-package chat;
+package groupchat;
 
 import "google/protobuf/timestamp.proto";
 
@@ -39,7 +39,13 @@ message StreamResponse {
         Login ClientLogin = 2;
         Logout ClientLogout = 3;
         Message ClientMessage = 4;
+        Existing ClientExisting = 5; 
     }
+    message Existing {
+        string Username = 2;
+        string Group = 3;
+    }
+
     message Login {
         string Username = 2;
         string Group = 3;
@@ -53,7 +59,6 @@ message StreamResponse {
         string Message = 3;
         string Group = 4;
     }
-    message Shutdown {}
 }
 
 message StreamRequest {

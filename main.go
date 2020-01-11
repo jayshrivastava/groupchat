@@ -34,7 +34,7 @@ func main() {
 		}
 
 		if (*cm.Username == "" || *cm.Password == "" || *cm.Host == "" || *cm.Group == "") {
-			ClientError(fmt.Errorf("Missing Flags"))
+			Error(fmt.Errorf("Missing Flags"))
 		}
 	
 		ClientMain(cm)
@@ -46,7 +46,7 @@ func main() {
 
 
 		if (*sp.Password == "" || *sp.Host == "") {
-			ServerError(fmt.Errorf("Missing Flags"))
+			Error(fmt.Errorf("Missing Flags"))
 		}
 
 		ServerMain(sp)

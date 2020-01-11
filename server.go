@@ -6,9 +6,7 @@ import (
 	"fmt" 
 	"io" 
 	"net" 
-	"os" 
 	"sync" 
-	"syscall"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -34,13 +32,9 @@ type ClientLog struct {
 	ClientChannels map[string]chan chat.StreamResponse 
 	ClientTokens map [string]string
 	ClientGroups map [string]string
+	GroupMembers map [string](map [string]bool)
 	// Readers/Writers lock on all maps
 	Mutex sync.RWMutex 
-}
-
-func ServerError(e error) {
-	fmt.Printf("%s\n", e.Error())
-	syscall.Kill(os.Getpid(), syscall.SIGTERM)
 }
 
 func CreateChatServer(props ServerProps) *Server {
@@ -53,6 +47,7 @@ func CreateChatServer(props ServerProps) *Server {
 		ClientChannels: make(map [string]chan chat.StreamResponse),
 		ClientTokens: make(map[string]string),
 		ClientGroups: make(map[string]string),
+		GroupMembers: make(map[string](map[string]bool)),
 	}
 	
 	return &server
@@ -80,11 +75,15 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 	s.ClientLog.ClientTokens[token] = req.Username
 	s.ClientLog.ClientGroups[req.Username] = req.Group
 
+	if _, found := s.ClientLog.GroupMembers[req.Group]; !found {
+		s.ClientLog.GroupMembers[req.Group] = make(map[string]bool)
+	}
+	s.ClientLog.GroupMembers[req.Group][req.Username] = true
+
 	s.ClientLog.Mutex.Unlock()
 
-
-	// Send login notification
-	res := chat.StreamResponse{
+	// Login notification 
+	new_user_res := chat.StreamResponse{
 		Timestamp: ptypes.TimestampNow(),
 		Event: &chat.StreamResponse_ClientLogin{
 			&chat.StreamResponse_Login{
@@ -95,9 +94,29 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 	}
 
 	s.ClientLog.Mutex.RLock()
+
+	fmt.Println(s.ClientLog.GroupMembers[req.Group])
+
+	// Notify existing users about the new user
 	for username, stream := range s.ClientLog.ClientChannels {
-		if s.ClientLog.ClientGroups[username] == req.Group {
-			stream <- res
+		if username != req.Username && s.ClientLog.ClientGroups[username] == req.Group {
+			stream <- new_user_res
+		}
+	}
+
+	// List existing users for the new user
+	for username, _ := range s.ClientLog.GroupMembers[req.Group] { 
+		if username != req.Username && s.ClientLog.ClientGroups[username] == req.Group {
+			existing_user_res := chat.StreamResponse{
+				Timestamp: ptypes.TimestampNow(),
+				Event: &chat.StreamResponse_ClientExisting{
+					&chat.StreamResponse_Existing{
+						Username: username,
+						Group: req.Group,
+					},
+				},
+			}
+			s.ClientLog.ClientChannels[req.Username] <- existing_user_res
 		}
 	}
 	s.ClientLog.Mutex.RUnlock()
