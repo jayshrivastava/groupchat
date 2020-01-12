@@ -15,8 +15,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/golang/protobuf/ptypes"
-
 	chat "github.com/jayshrivastava/groupchat/proto"
 )
 
@@ -123,26 +121,15 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 		
 		switch evt := res.Event.(type) {
 		case *chat.StreamResponse_ClientMessage:
-			timestamp, err := ptypes.Timestamp(res.Timestamp) 
-			if err != nil {
-				timestamp = time.Now()
-			}
-			fmt.Printf("[%s] (%s) %s\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientMessage.Username, evt.ClientMessage.Message)
+
+			fmt.Printf("[%s] (%s) %s\n", TimestampToString(res.Timestamp), evt.ClientMessage.Username, evt.ClientMessage.Message)
 		case *chat.StreamResponse_ClientLogin:
-			timestamp, err := ptypes.Timestamp(res.Timestamp) 
-			if err != nil {
-				timestamp = time.Now()
-			}
-			fmt.Printf("[%s] (%s joined %s)\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientLogin.Username, evt.ClientLogin.Group)
+			fmt.Printf("[%s] (%s joined %s)\n", TimestampToString(res.Timestamp), evt.ClientLogin.Username, evt.ClientLogin.Group)
 		case *chat.StreamResponse_ClientExisting:
 			// timestamp exists but we do not need it
 			fmt.Printf("(member %s of %s)\n", evt.ClientExisting.Username, evt.ClientExisting.Group)
 		case *chat.StreamResponse_ClientLogout:
-			timestamp, err := ptypes.Timestamp(res.Timestamp) 
-			if err != nil {
-				timestamp = time.Now()
-			}
-			fmt.Printf("[%s] (%s left %s)\n", timestamp.In(time.Local).Format("03:04:05 PM"), evt.ClientLogout.Username, evt.ClientLogout.Group)
+			fmt.Printf("[%s] (%s left %s)\n", TimestampToString(res.Timestamp), evt.ClientLogout.Username, evt.ClientLogout.Group)
 		default:
 			
 		}

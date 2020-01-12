@@ -95,8 +95,6 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 
 	s.ClientLog.Mutex.RLock()
 
-	fmt.Println(s.ClientLog.GroupMembers[req.Group])
-
 	// Notify existing users about the new user
 	for username, stream := range s.ClientLog.ClientChannels {
 		if username != req.Username && s.ClientLog.ClientGroups[username] == req.Group {
@@ -215,8 +213,8 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 			},
 		}
 
-		for username, clientChannel := range s.ClientLog.ClientChannels {
-			if s.ClientLog.ClientGroups[username] == group {
+		for reciever_username, clientChannel := range s.ClientLog.ClientChannels {
+			if username != reciever_username && s.ClientLog.ClientGroups[reciever_username] == group {
 				clientChannel <- res
 			}
 		}
