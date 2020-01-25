@@ -19,19 +19,19 @@ import (
 )
 
 type ClientMeta struct {
-	Username *string
-	Password *string
-	Host *string
-	Group *string
+	Username string
+	Password string
+	Host string
+	Group string
 	Token string
 }
 
 func Login(client chat.ChatClient, cm *ClientMeta) {
 
 	req := chat.LoginRequest{
-		Username: *cm.Username,
-		Password: *cm.Password,
-		Group: *cm.Group,
+		Username: cm.Username,
+		Password: cm.Password,
+		Group: cm.Group,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -49,7 +49,7 @@ func Login(client chat.ChatClient, cm *ClientMeta) {
 func Logout(client chat.ChatClient, cm *ClientMeta) {
 
 	req := chat.LogoutRequest{
-		Username: *cm.Username,
+		Username: cm.Username,
 	}
 
 	meta := metadata.New(map[string]string{"token": cm.Token})
@@ -102,8 +102,8 @@ func ClientSender(stream chat.Chat_StreamClient, cm *ClientMeta) {
 		text = strings.TrimSuffix(text, "\n")
 		
 		req := chat.StreamRequest{
-			Username: *cm.Username, 
-			Group: *cm.Group,
+			Username: cm.Username, 
+			Group: cm.Group,
 			Message: text,
 		}
 		stream.Send(&req)
@@ -134,14 +134,12 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 			
 		}
 	}
-
-	return nil
 }
 
 func ClientMain(clientMeta ClientMeta) {
 
 	// register server
-	conn, err := grpc.Dial("localhost:5000", grpc.WithInsecure())
+	conn, err := grpc.Dial(clientMeta.Host, grpc.WithInsecure())
 	if err != nil {
 		Error(fmt.Errorf("fail to dial: %v", err))
 	}

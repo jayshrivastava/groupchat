@@ -16,15 +16,16 @@ import (
 	chat "github.com/jayshrivastava/groupchat/proto"
 )
 
+
 type ServerProps struct {
-	Password *string
-	Host *string
+	Password string
+	Port string
 }
 
 type Server struct {
 	chat.UnimplementedChatServer
-	Password *string
-	Host *string
+	Password string
+	Port string
 	ClientLog *ClientLog
 }
 
@@ -40,7 +41,7 @@ type ClientLog struct {
 func CreateChatServer(props ServerProps) *Server {
 	server := Server{
 		Password: props.Password,
-		Host: props.Host,
+		Port: props.Port,
 	}
 
 	server.ClientLog = &ClientLog{
@@ -61,6 +62,11 @@ func GenerateToken() string {
 }
 
 func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.LoginResponse, error) {
+
+	if s.Password != req.Password {
+		return nil, fmt.Errorf("Invalid server password: %s", req.Username)
+	}
+
 	// write lock
 	s.ClientLog.Mutex.Lock()
 
@@ -239,7 +245,7 @@ func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token 
 
 func ServerMain(props ServerProps) {
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:5000"))
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%s", props.Port))
 	if err != nil {
 		fmt.Errorf("failed to listen: %v", err)
     }
