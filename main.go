@@ -3,6 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+
+	"github.com/jayshrivastava/groupchat/server"
+	"github.com/jayshrivastava/groupchat/client"
+	"github.com/jayshrivastava/groupchat/helpers"
 )
 
 type Flags struct {
@@ -20,7 +24,7 @@ func main() {
 		Username: flag.String("u", "", "Username"),
 		Password: flag.String("p", "", "Server Password"),
 		Host: flag.String("h", "", "Host"),
-		Port: flag.String("port", "", "Port"),
+		Port: flag.String("port", "5000", "Port"),
 		Group: flag.String("g", "", "Username"),
 		RunAsServer: flag.Bool("s", false, "Run server if flag is present"),
 	}
@@ -28,7 +32,7 @@ func main() {
 	flag.Parse();
 
 	if (!*flags.RunAsServer) {
-		cm := ClientMeta {
+		cm := client.ClientMeta {
 			Username: *flags.Username,
 			Password: *flags.Password,
 			Host: *flags.Host,
@@ -36,21 +40,20 @@ func main() {
 		}
 
 		if (cm.Username == "" || cm.Password == "" || cm.Host == "" || cm.Group == "") {
-			Error(fmt.Errorf("Missing Flags"))
+			helpers.Error(fmt.Errorf("Missing Flags"))
 		}
 	
-		ClientMain(cm)
+		client.ClientMain(cm)
 	} else {
-		sp := ServerProps {
+		sp := server.ServerProps {
 			Password: *(flags.Password),
 			Port: *(flags.Port),
 		}
 
-
 		if (sp.Password == "" || sp.Port == "") {
-			Error(fmt.Errorf("Missing Flags"))
+			helpers.Error(fmt.Errorf("Missing Flags"))
 		}
 
-		ServerMain(sp)
+		server.ServerMain(sp)
 	}
 }
