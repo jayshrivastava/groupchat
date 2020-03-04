@@ -13,7 +13,9 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	
+	. "github.com/jayshrivastava/groupchat/helpers"
 	chat "github.com/jayshrivastava/groupchat/proto"
+	application "github.com/jayshrivastava/groupchat/server/application"
 )
 
 
@@ -27,10 +29,10 @@ type Server struct {
 	Password string
 	Port string
 	ClientLog *ClientLog
+	Context *application.Context
 }
 
 type ClientLog struct {
-	ClientChannels map[string]chan chat.StreamResponse 
 	ClientTokens map [string]string
 	ClientGroups map [string]string
 	GroupMembers map [string](map [string]bool)
@@ -42,10 +44,10 @@ func CreateChatServer(props ServerProps) *Server {
 	server := Server{
 		Password: props.Password,
 		Port: props.Port,
+		Context: application.CreateApplicationContext(),
 	}
 
 	server.ClientLog = &ClientLog{
-		ClientChannels: make(map [string]chan chat.StreamResponse),
 		ClientTokens: make(map[string]string),
 		ClientGroups: make(map[string]string),
 		GroupMembers: make(map[string](map[string]bool)),
@@ -67,17 +69,15 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 		return nil, fmt.Errorf("Invalid server password: %s", req.Username)
 	}
 
-	// write lock
-	s.ClientLog.Mutex.Lock()
-
-	if _, found := s.ClientLog.ClientChannels[req.Username]; found {
-		s.ClientLog.Mutex.Unlock()
-		return nil, fmt.Errorf("Username %s already exists", req.Username)
+	err := s.Context.ChannelRepository.Create(req.Username);
+	if err != nil {
+		Error(err)
 	}
+	
+	s.ClientLog.Mutex.Lock()
 
 	token := GenerateToken()
 
-	s.ClientLog.ClientChannels[req.Username] = make(chan chat.StreamResponse, 5)
 	s.ClientLog.ClientTokens[token] = req.Username
 	s.ClientLog.ClientGroups[req.Username] = req.Group
 
@@ -102,8 +102,9 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 	s.ClientLog.Mutex.RLock()
 
 	// Notify existing users about the new user
-	for username, stream := range s.ClientLog.ClientChannels {
-		if username != req.Username && s.ClientLog.ClientGroups[username] == req.Group {
+	for username, _ := range s.ClientLog.GroupMembers[req.Group]  {
+		if username != req.Username {
+			stream, _ := s.Context.ChannelRepository.Get(username)
 			stream <- new_user_res
 		}
 	}
@@ -120,7 +121,8 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 					},
 				},
 			}
-			s.ClientLog.ClientChannels[req.Username] <- existing_user_res
+			stream, _ := s.Context.ChannelRepository.Get(req.Username)
+			stream <- existing_user_res
 		}
 	}
 	s.ClientLog.Mutex.RUnlock()
@@ -144,7 +146,6 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 
 	group := s.ClientLog.ClientGroups[req.Username]
 
-	delete(s.ClientLog.ClientChannels, req.Username)
 	delete(s.ClientLog.ClientTokens, token)
 	delete(s.ClientLog.ClientGroups, req.Username)
 	
@@ -162,10 +163,10 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 	}
 
 	s.ClientLog.Mutex.RLock()
-	for username, stream := range s.ClientLog.ClientChannels {
-		if s.ClientLog.ClientGroups[username] == group {
-			stream <- res
-		}
+
+	for username, _ := range s.ClientLog.GroupMembers[group] {
+		stream, _ := s.Context.ChannelRepository.Get(username)
+		stream <- res
 	}
 	s.ClientLog.Mutex.RUnlock()
 
@@ -219,8 +220,9 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 			},
 		}
 
-		for reciever_username, clientChannel := range s.ClientLog.ClientChannels {
-			if username != reciever_username && s.ClientLog.ClientGroups[reciever_username] == group {
+		for reciever_username, _ := range s.ClientLog.GroupMembers[group] {
+			if username != reciever_username {
+				clientChannel, _ := s.Context.ChannelRepository.Get(reciever_username)
 				clientChannel <- res
 			}
 		}
@@ -234,7 +236,7 @@ func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token 
 
 	s.ClientLog.Mutex.RLock()
 	username := s.ClientLog.ClientTokens[token]
-	clientChannel := s.ClientLog.ClientChannels[username]
+	clientChannel, _ := s.Context.ChannelRepository.Get(username)
 	s.ClientLog.Mutex.RUnlock()
 	
 	for {
