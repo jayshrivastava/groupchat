@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	chat "github.com/jayshrivastava/groupchat/proto"
-	"github.com/jayshrivastava/groupchat/helpers"
+	. "github.com/jayshrivastava/groupchat/helpers"
 )
 
 type ClientMeta struct {
@@ -40,7 +40,7 @@ func Login(client chat.ChatClient, cm *ClientMeta) {
 	res, err := client.Login(ctx, &req)
 
 	if err != nil {
-		helpers.Error(fmt.Errorf("Login Failed: %s", err))
+		Error(fmt.Errorf("Login Failed: %s", err))
 	}
 
 	cm.Token = res.Token
@@ -62,7 +62,7 @@ func Logout(client chat.ChatClient, cm *ClientMeta) {
 	_, err := client.Logout(ctx, &req)
 
 	if err != nil {
-		helpers.Error(fmt.Errorf("Logout Failed: %s", err))
+		Error(fmt.Errorf("Logout Failed: %s", err))
 	}
 
 }
@@ -87,7 +87,7 @@ func Stream(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) error {
 	stream, err := client.Stream(ctx)
 
 	if err != nil {
-		helpers.Error(fmt.Errorf("Could not connect to stream: %s", err))
+		Error(fmt.Errorf("Could not connect to stream: %s", err))
 	}
 	defer stream.CloseSend()
 
@@ -123,14 +123,14 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 		switch evt := res.Event.(type) {
 		case *chat.StreamResponse_ClientMessage:
 
-			fmt.Printf("[%s] (%s) %s\n", helpers.TimestampToString(res.Timestamp), evt.ClientMessage.Username, evt.ClientMessage.Message)
+			fmt.Printf("[%s] (%s) %s\n", TimestampToString(res.Timestamp), evt.ClientMessage.Username, evt.ClientMessage.Message)
 		case *chat.StreamResponse_ClientLogin:
-			fmt.Printf("[%s] (%s joined %s)\n", helpers.TimestampToString(res.Timestamp), evt.ClientLogin.Username, evt.ClientLogin.Group)
+			fmt.Printf("[%s] (%s joined %s)\n", TimestampToString(res.Timestamp), evt.ClientLogin.Username, evt.ClientLogin.Group)
 		case *chat.StreamResponse_ClientExisting:
 			// timestamp exists but we do not need it
 			fmt.Printf("(member %s of %s)\n", evt.ClientExisting.Username, evt.ClientExisting.Group)
 		case *chat.StreamResponse_ClientLogout:
-			fmt.Printf("[%s] (%s left %s)\n", helpers.TimestampToString(res.Timestamp), evt.ClientLogout.Username, evt.ClientLogout.Group)
+			fmt.Printf("[%s] (%s left %s)\n", TimestampToString(res.Timestamp), evt.ClientLogout.Username, evt.ClientLogout.Group)
 		default:
 			
 		}
@@ -142,7 +142,7 @@ func ClientMain(clientMeta ClientMeta) {
 	// register server
 	conn, err := grpc.Dial(clientMeta.Host, grpc.WithInsecure())
 	if err != nil {
-		helpers.Error(fmt.Errorf("fail to dial: %v", err))
+		Error(fmt.Errorf("fail to dial: %v", err))
 	}
 	defer conn.Close()
 	client := chat.NewChatClient(conn)
