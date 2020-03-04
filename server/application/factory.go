@@ -5,5 +5,9 @@ import(
 )
 
 func CreateApplicationContext() *Context{
-	return CreateContext(repositories.CreateApplicationChannelRepository())
+	return CreateContext(
+		repositories.CreateApplicationChannelRepository(), 
+		repositories.CreateApplicationGroupRepository(),
+	)
 }
+

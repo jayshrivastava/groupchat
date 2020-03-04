@@ -13,7 +13,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	
-	. "github.com/jayshrivastava/groupchat/helpers"
 	chat "github.com/jayshrivastava/groupchat/proto"
 	application "github.com/jayshrivastava/groupchat/server/application"
 )
@@ -35,7 +34,6 @@ type Server struct {
 type ClientLog struct {
 	ClientTokens map [string]string
 	ClientGroups map [string]string
-	GroupMembers map [string](map [string]bool)
 	// Readers/Writers lock on all maps
 	Mutex sync.RWMutex 
 }
@@ -50,7 +48,6 @@ func CreateChatServer(props ServerProps) *Server {
 	server.ClientLog = &ClientLog{
 		ClientTokens: make(map[string]string),
 		ClientGroups: make(map[string]string),
-		GroupMembers: make(map[string](map[string]bool)),
 	}
 	
 	return &server
@@ -69,10 +66,7 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 		return nil, fmt.Errorf("Invalid server password: %s", req.Username)
 	}
 
-	err := s.Context.ChannelRepository.Create(req.Username);
-	if err != nil {
-		Error(err)
-	}
+	s.Context.ChannelRepository.Create(req.Username);
 	
 	s.ClientLog.Mutex.Lock()
 
@@ -81,10 +75,8 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 	s.ClientLog.ClientTokens[token] = req.Username
 	s.ClientLog.ClientGroups[req.Username] = req.Group
 
-	if _, found := s.ClientLog.GroupMembers[req.Group]; !found {
-		s.ClientLog.GroupMembers[req.Group] = make(map[string]bool)
-	}
-	s.ClientLog.GroupMembers[req.Group][req.Username] = true
+	s.Context.GroupRepository.CreateIfNotExists(req.Group)
+	s.Context.GroupRepository.AddUserToGroup(req.Username, req.Group)
 
 	s.ClientLog.Mutex.Unlock()
 
@@ -101,29 +93,27 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 
 	s.ClientLog.Mutex.RLock()
 
+	groupMembers, _ := s.Context.GroupRepository.GetGroupMembers(req.Group, req.Username)
+
 	// Notify existing users about the new user
-	for username, _ := range s.ClientLog.GroupMembers[req.Group]  {
-		if username != req.Username {
-			stream, _ := s.Context.ChannelRepository.Get(username)
-			stream <- new_user_res
-		}
+	for _, username := range groupMembers { 
+		stream, _ := s.Context.ChannelRepository.Get(username)
+		stream <- new_user_res
 	}
 
 	// List existing users for the new user
-	for username, _ := range s.ClientLog.GroupMembers[req.Group] { 
-		if username != req.Username && s.ClientLog.ClientGroups[username] == req.Group {
-			existing_user_res := chat.StreamResponse{
-				Timestamp: ptypes.TimestampNow(),
-				Event: &chat.StreamResponse_ClientExisting{
-					&chat.StreamResponse_Existing{
-						Username: username,
-						Group: req.Group,
-					},
+	for _, username := range groupMembers { 
+		existing_user_res := chat.StreamResponse{
+			Timestamp: ptypes.TimestampNow(),
+			Event: &chat.StreamResponse_ClientExisting{
+				&chat.StreamResponse_Existing{
+					Username: username,
+					Group: req.Group,
 				},
-			}
-			stream, _ := s.Context.ChannelRepository.Get(req.Username)
-			stream <- existing_user_res
+			},
 		}
+		stream, _ := s.Context.ChannelRepository.Get(req.Username)
+		stream <- existing_user_res
 	}
 	s.ClientLog.Mutex.RUnlock()
 
@@ -164,10 +154,12 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 
 	s.ClientLog.Mutex.RLock()
 
-	for username, _ := range s.ClientLog.GroupMembers[group] {
+	groupMembers, _ := s.Context.GroupRepository.GetGroupMembers(group, req.Username)
+		for _, username := range groupMembers { 
 		stream, _ := s.Context.ChannelRepository.Get(username)
 		stream <- res
 	}
+	s.Context.GroupRepository.RemoveUserFromGroup(req.Username, group)
 	s.ClientLog.Mutex.RUnlock()
 
 	return &chat.LogoutResponse{}, nil
@@ -220,7 +212,8 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 			},
 		}
 
-		for reciever_username, _ := range s.ClientLog.GroupMembers[group] {
+		groupMembers, _ := s.Context.GroupRepository.GetGroupMembers(group, username)
+		for _, reciever_username := range groupMembers { 
 			if username != reciever_username {
 				clientChannel, _ := s.Context.ChannelRepository.Get(reciever_username)
 				clientChannel <- res

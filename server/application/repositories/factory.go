@@ -12,3 +12,10 @@ func CreateApplicationChannelRepository() *ApplicationChannelRepository {
 	repo.RWMutex = sync.RWMutex{}
 	return repo
 }
+
+func CreateApplicationGroupRepository() *ApplicationGroupRepository {
+	repo := new(ApplicationGroupRepository)
+	repo.Groups = map[string](map[string]bool){}
+	repo.RWMutex = sync.RWMutex{}
+	return repo
+}
