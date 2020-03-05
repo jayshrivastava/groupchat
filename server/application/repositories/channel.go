@@ -2,13 +2,13 @@ package repositories
 
 import (
 	"fmt"
-	"sync"
 	chat "github.com/jayshrivastava/groupchat/proto"
+	"sync"
 )
 
 type ApplicationChannelRepository struct {
-	Channels map[string]chan chat.StreamResponse 
-	RWMutex sync.RWMutex 
+	Channels map[string]chan chat.StreamResponse
+	RWMutex  sync.RWMutex
 }
 
 func (repository *ApplicationChannelRepository) Create(key string) error {

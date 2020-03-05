@@ -1,14 +1,13 @@
 package application
 
-import(
+import (
 	repositories "github.com/jayshrivastava/groupchat/server/application/repositories"
 )
 
-func CreateApplicationContext() *Context{
+func CreateApplicationContext() *Context {
 	return CreateContext(
-		repositories.CreateApplicationChannelRepository(), 
+		repositories.CreateApplicationChannelRepository(),
 		repositories.CreateApplicationGroupRepository(),
 		repositories.CreateApplicationUserRepository(),
 	)
 }
-

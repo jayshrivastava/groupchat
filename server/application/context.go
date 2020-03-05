@@ -1,13 +1,13 @@
 package application
 
-import(
+import (
 	repositories "github.com/jayshrivastava/groupchat/server/application/repositories"
 )
 
 type Context struct {
 	ChannelRepository repositories.ChannelRepository
-	GroupRepository repositories.GroupRepository
-	UserRepository repositories.UserRepository
+	GroupRepository   repositories.GroupRepository
+	UserRepository    repositories.UserRepository
 }
 
 func CreateContext(

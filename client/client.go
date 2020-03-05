@@ -15,16 +15,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	chat "github.com/jayshrivastava/groupchat/proto"
 	. "github.com/jayshrivastava/groupchat/helpers"
+	chat "github.com/jayshrivastava/groupchat/proto"
 )
 
 type ClientMeta struct {
 	Username string
 	Password string
-	Host string
-	Group string
-	Token string
+	Host     string
+	Group    string
+	Token    string
 }
 
 func Login(client chat.ChatClient, cm *ClientMeta) {
@@ -32,7 +32,7 @@ func Login(client chat.ChatClient, cm *ClientMeta) {
 	req := chat.LoginRequest{
 		Username: cm.Username,
 		Password: cm.Password,
-		Group: cm.Group,
+		Group:    cm.Group,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -74,13 +74,13 @@ func LogoutHandler(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) {
 	signal.Notify(sigs, syscall.SIGINT)
 
 	_ = <-sigs
-	
+
 	Logout(client, cm)
 	syscall.Kill(os.Getpid(), syscall.SIGTERM)
 }
 
 func Stream(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) error {
-	
+
 	meta := metadata.New(map[string]string{"token": cm.Token})
 	ctx := metadata.NewOutgoingContext(context.Background(), meta)
 
@@ -101,11 +101,11 @@ func ClientSender(stream chat.Chat_StreamClient, cm *ClientMeta) {
 	for {
 		text, _ := reader.ReadString('\n')
 		text = strings.TrimSuffix(text, "\n")
-		
+
 		req := chat.StreamRequest{
-			Username: cm.Username, 
-			Group: cm.Group,
-			Message: text,
+			Username: cm.Username,
+			Group:    cm.Group,
+			Message:  text,
 		}
 		stream.Send(&req)
 	}
@@ -119,7 +119,7 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 		if err == io.EOF {
 			continue
 		}
-		
+
 		switch evt := res.Event.(type) {
 		case *chat.StreamResponse_ClientMessage:
 
@@ -132,7 +132,7 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 		case *chat.StreamResponse_ClientLogout:
 			fmt.Printf("[%s] (%s left %s)\n", TimestampToString(res.Timestamp), evt.ClientLogout.Username, evt.ClientLogout.Group)
 		default:
-			
+
 		}
 	}
 }
@@ -152,7 +152,7 @@ func ClientMain(clientMeta ClientMeta) {
 
 	// create waitgroup and dispatch threads
 	wg := sync.WaitGroup{}
-	
+
 	// register signal handler for logout
 	wg.Add(1)
 	go LogoutHandler(client, &wg, &clientMeta)

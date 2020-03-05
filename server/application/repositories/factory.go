@@ -1,8 +1,8 @@
 package repositories
 
-import(
+import (
 	"sync"
-	
+
 	chat "github.com/jayshrivastava/groupchat/proto"
 )
 

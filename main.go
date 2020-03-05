@@ -4,53 +4,53 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/jayshrivastava/groupchat/server"
 	"github.com/jayshrivastava/groupchat/client"
 	"github.com/jayshrivastava/groupchat/helpers"
+	"github.com/jayshrivastava/groupchat/server"
 )
 
-type Flags struct {
-	Username *string
-	Password *string
-	Host *string
-	Port *string
-	Group *string
+type flags struct {
+	Username    *string
+	Password    *string
+	Host        *string
+	Port        *string
+	Group       *string
 	RunAsServer *bool
 }
 
 func main() {
 
-	flags := Flags{
-		Username: flag.String("u", "", "Username"),
-		Password: flag.String("p", "", "Server Password"),
-		Host: flag.String("h", "", "Host"),
-		Port: flag.String("port", "5000", "Port"),
-		Group: flag.String("g", "", "Username"),
+	flags := flags{
+		Username:    flag.String("u", "", "Username"),
+		Password:    flag.String("p", "", "Server Password"),
+		Host:        flag.String("h", "", "Host"),
+		Port:        flag.String("port", "5000", "Port"),
+		Group:       flag.String("g", "", "Username"),
 		RunAsServer: flag.Bool("s", false, "Run server if flag is present"),
 	}
 
-	flag.Parse();
+	flag.Parse()
 
-	if (!*flags.RunAsServer) {
-		cm := client.ClientMeta {
+	if !*flags.RunAsServer {
+		cm := client.ClientMeta{
 			Username: *flags.Username,
 			Password: *flags.Password,
-			Host: *flags.Host,
-			Group: *flags.Group,
+			Host:     *flags.Host,
+			Group:    *flags.Group,
 		}
 
-		if (cm.Username == "" || cm.Password == "" || cm.Host == "" || cm.Group == "") {
+		if cm.Username == "" || cm.Password == "" || cm.Host == "" || cm.Group == "" {
 			helpers.Error(fmt.Errorf("Missing Flags"))
 		}
-	
+
 		client.ClientMain(cm)
 	} else {
-		sp := server.ServerProps {
+		sp := server.ServerProps{
 			Password: *(flags.Password),
-			Port: *(flags.Port),
+			Port:     *(flags.Port),
 		}
 
-		if (sp.Password == "" || sp.Port == "") {
+		if sp.Password == "" || sp.Port == "" {
 			helpers.Error(fmt.Errorf("Missing Flags"))
 		}
 

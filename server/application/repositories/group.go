@@ -6,8 +6,8 @@ import (
 )
 
 type ApplicationGroupRepository struct {
-	Groups map[string](map[string]bool)
-	RWMutex sync.RWMutex 
+	Groups  map[string](map[string]bool)
+	RWMutex sync.RWMutex
 }
 
 func (repository *ApplicationGroupRepository) GetGroupMembers(group string, username string) ([]string, error) {
@@ -15,14 +15,14 @@ func (repository *ApplicationGroupRepository) GetGroupMembers(group string, user
 	defer repository.RWMutex.RUnlock()
 
 	if _, found := repository.Groups[group]; !found {
-		return make([]string,0), fmt.Errorf("Group %s not found", group)
+		return make([]string, 0), fmt.Errorf("Group %s not found", group)
 	}
 
 	if _, found := repository.Groups[group][username]; !found {
-		return make([]string,0), fmt.Errorf("Username %s does not exist in %s", username, group)
+		return make([]string, 0), fmt.Errorf("Username %s does not exist in %s", username, group)
 	}
 
-	usernames := make([]string,len(repository.Groups[group])-1)
+	usernames := make([]string, len(repository.Groups[group])-1)
 	i := 0
 	for memberUsername, _ := range repository.Groups[group] {
 		if memberUsername != username {
@@ -34,7 +34,7 @@ func (repository *ApplicationGroupRepository) GetGroupMembers(group string, user
 	return usernames, nil
 }
 
-func (repository *ApplicationGroupRepository) CreateIfNotExists(group string) (error) {
+func (repository *ApplicationGroupRepository) CreateIfNotExists(group string) error {
 	repository.RWMutex.Lock()
 	defer repository.RWMutex.Unlock()
 
@@ -45,7 +45,7 @@ func (repository *ApplicationGroupRepository) CreateIfNotExists(group string) (e
 	return nil
 }
 
-func (repository *ApplicationGroupRepository) AddUserToGroup(username string, group string) (error) {
+func (repository *ApplicationGroupRepository) AddUserToGroup(username string, group string) error {
 	repository.RWMutex.Lock()
 	defer repository.RWMutex.Unlock()
 
@@ -62,7 +62,7 @@ func (repository *ApplicationGroupRepository) AddUserToGroup(username string, gr
 	return nil
 }
 
-func (repository *ApplicationGroupRepository) RemoveUserFromGroup(username string, group string) (error) {
+func (repository *ApplicationGroupRepository) RemoveUserFromGroup(username string, group string) error {
 	repository.RWMutex.Lock()
 	defer repository.RWMutex.Unlock()
 
@@ -74,7 +74,7 @@ func (repository *ApplicationGroupRepository) RemoveUserFromGroup(username strin
 		return fmt.Errorf("User %s does not exist in group %s", username, group)
 	}
 
-	delete(	repository.Groups[group], username)
+	delete(repository.Groups[group], username)
 
 	return nil
 }

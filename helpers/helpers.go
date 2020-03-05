@@ -15,8 +15,8 @@ func Error(e error) {
 	syscall.Kill(os.Getpid(), syscall.SIGTERM)
 }
 
-func TimestampToString (ts *timestamp.Timestamp) string {
-	timestamp, err := ptypes.Timestamp(ts) 
+func TimestampToString(ts *timestamp.Timestamp) string {
+	timestamp, err := ptypes.Timestamp(ts)
 	if err != nil {
 		timestamp = time.Now()
 	}

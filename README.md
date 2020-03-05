@@ -27,4 +27,7 @@ ex. `./groupchat -u "jay" -g "my group" -p "password" -h "localhost:5000"`
 <b> Generate Protocol Bufffer </b>  
 `protoc -I proto/ proto/groupchat.proto --go_out=plugins=grpc:proto`
 
+<b> Formatting </b>
+`go fmt ./...`
+
 

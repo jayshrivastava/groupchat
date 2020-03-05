@@ -6,12 +6,12 @@ import (
 )
 
 type ApplicationUserRepository struct {
-	Users map[string]*user
-	Tokens map[string]string
-	RWMutex sync.RWMutex 
+	Users   map[string]*user
+	Tokens  map[string]string
+	RWMutex sync.RWMutex
 }
 
-func (repository *ApplicationUserRepository) Create(username string, token string, group string) (error) {
+func (repository *ApplicationUserRepository) Create(username string, token string, group string) error {
 	repository.RWMutex.Lock()
 	defer repository.RWMutex.Unlock()
 
@@ -58,7 +58,7 @@ func (repository *ApplicationUserRepository) GetUsername(token string) (string, 
 	return repository.Tokens[token], nil
 }
 
-func (repository *ApplicationUserRepository) DeleteToken(username string) (error) {
+func (repository *ApplicationUserRepository) DeleteToken(username string) error {
 	repository.RWMutex.Lock()
 	defer repository.RWMutex.Unlock()
 
@@ -66,13 +66,13 @@ func (repository *ApplicationUserRepository) DeleteToken(username string) (error
 		return fmt.Errorf("User %s username not found", username)
 	}
 
-	delete(repository.Tokens, repository.Users[username].Token )
+	delete(repository.Tokens, repository.Users[username].Token)
 	repository.Users[username].Token = ""
 
 	return nil
 }
 
-func (repository *ApplicationUserRepository) DeleteGroup(username string) (error) {
+func (repository *ApplicationUserRepository) DeleteGroup(username string) error {
 	repository.RWMutex.Lock()
 	defer repository.RWMutex.Unlock()
 
