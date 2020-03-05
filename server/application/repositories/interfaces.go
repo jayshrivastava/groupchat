@@ -15,3 +15,12 @@ type GroupRepository interface {
 	AddUserToGroup(username string, group string) (error)
 	RemoveUserFromGroup(username string, group string) (error)
 }
+
+type UserRepository interface {
+	Create(username string, token string, group string) (error)
+	GetToken(username string) (string, error)
+	GetGroup(username string) (string, error)
+	GetUsername(token string) (string, error)
+	DeleteToken(username string) (error)
+	DeleteGroup(username string) (error)
+}

@@ -19,3 +19,10 @@ func CreateApplicationGroupRepository() *ApplicationGroupRepository {
 	repo.RWMutex = sync.RWMutex{}
 	return repo
 }
+
+func CreateApplicationUserRepository() *ApplicationUserRepository {
+	repo := new(ApplicationUserRepository)
+	repo.Users = map[string]*user{}
+	repo.Tokens = map[string]string{}
+	return repo
+}

@@ -8,6 +8,7 @@ func CreateApplicationContext() *Context{
 	return CreateContext(
 		repositories.CreateApplicationChannelRepository(), 
 		repositories.CreateApplicationGroupRepository(),
+		repositories.CreateApplicationUserRepository(),
 	)
 }
 

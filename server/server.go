@@ -27,15 +27,7 @@ type Server struct {
 	chat.UnimplementedChatServer
 	Password string
 	Port string
-	ClientLog *ClientLog
 	Context *application.Context
-}
-
-type ClientLog struct {
-	ClientTokens map [string]string
-	ClientGroups map [string]string
-	// Readers/Writers lock on all maps
-	Mutex sync.RWMutex 
 }
 
 func CreateChatServer(props ServerProps) *Server {
@@ -45,11 +37,6 @@ func CreateChatServer(props ServerProps) *Server {
 		Context: application.CreateApplicationContext(),
 	}
 
-	server.ClientLog = &ClientLog{
-		ClientTokens: make(map[string]string),
-		ClientGroups: make(map[string]string),
-	}
-	
 	return &server
 }
 
@@ -66,19 +53,12 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 		return nil, fmt.Errorf("Invalid server password: %s", req.Username)
 	}
 
-	s.Context.ChannelRepository.Create(req.Username);
-	
-	s.ClientLog.Mutex.Lock()
-
 	token := GenerateToken()
 
-	s.ClientLog.ClientTokens[token] = req.Username
-	s.ClientLog.ClientGroups[req.Username] = req.Group
-
+	s.Context.ChannelRepository.Create(req.Username);
+	s.Context.UserRepository.Create(req.Username, token, req.Group)
 	s.Context.GroupRepository.CreateIfNotExists(req.Group)
 	s.Context.GroupRepository.AddUserToGroup(req.Username, req.Group)
-
-	s.ClientLog.Mutex.Unlock()
 
 	// Login notification 
 	new_user_res := chat.StreamResponse{
@@ -90,8 +70,6 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 			},
 		},
 	}
-
-	s.ClientLog.Mutex.RLock()
 
 	groupMembers, _ := s.Context.GroupRepository.GetGroupMembers(req.Group, req.Username)
 
@@ -115,32 +93,27 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 		stream, _ := s.Context.ChannelRepository.Get(req.Username)
 		stream <- existing_user_res
 	}
-	s.ClientLog.Mutex.RUnlock()
 
 	return &chat.LoginResponse{Token: token}, nil
 }
 
 func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.LogoutResponse, error) {
 	
-	token, err := s.GetTokenFromContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Missing token provided for %s", req.Username)
-	}
+	/* TODO AUTHENTICATE REQUEST*/
+	// token, err := s.GetTokenFromContext(ctx)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Missing token provided for %s", req.Username)
+	// }
+	// if _, found := s.ClientLog.ClientTokens[token]; !found || s.ClientLog.ClientTokens[token] != req.Username {
+	// 	s.ClientLog.Mutex.Unlock()
+	// 	return nil, fmt.Errorf("Invalid Token for %s", req.Username)
+	// }
+
+	group, _ := s.Context.UserRepository.GetGroup(req.Username)
+
+	s.Context.UserRepository.DeleteToken(req.Username)
+	s.Context.UserRepository.DeleteGroup(req.Username)
 	
-	s.ClientLog.Mutex.Lock()
-
-	if _, found := s.ClientLog.ClientTokens[token]; !found || s.ClientLog.ClientTokens[token] != req.Username {
-		s.ClientLog.Mutex.Unlock()
-		return nil, fmt.Errorf("Invalid Token for %s", req.Username)
-	}
-
-	group := s.ClientLog.ClientGroups[req.Username]
-
-	delete(s.ClientLog.ClientTokens, token)
-	delete(s.ClientLog.ClientGroups, req.Username)
-	
-	s.ClientLog.Mutex.Unlock()
-
 	// Send logout notification
 	res := chat.StreamResponse{
 		Timestamp: ptypes.TimestampNow(),
@@ -152,15 +125,12 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 		},
 	}
 
-	s.ClientLog.Mutex.RLock()
-
 	groupMembers, _ := s.Context.GroupRepository.GetGroupMembers(group, req.Username)
 		for _, username := range groupMembers { 
 		stream, _ := s.Context.ChannelRepository.Get(username)
 		stream <- res
 	}
 	s.Context.GroupRepository.RemoveUserFromGroup(req.Username, group)
-	s.ClientLog.Mutex.RUnlock()
 
 	return &chat.LogoutResponse{}, nil
 }
@@ -195,11 +165,10 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 
 		username, group, message := req.Username, req.Group, req.Message
 
-		s.ClientLog.Mutex.RLock()
-		if _, found := s.ClientLog.ClientTokens[token]; !found || s.ClientLog.ClientTokens[token] != req.Username {
-			s.ClientLog.Mutex.RUnlock()
-			break
-		}
+		/* TODO AUTHENTICATE REQUESTS */
+		// if _, found := s.ClientLog.ClientTokens[token]; !found || s.ClientLog.ClientTokens[token] != req.Username {
+		// 	break
+		// }
 
 		res := chat.StreamResponse{
 			Timestamp: ptypes.TimestampNow(),
@@ -220,17 +189,14 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 			}
 		}
 
-		s.ClientLog.Mutex.RUnlock()
 	}
 }
 
 func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token string) {
 	defer wg.Done()
 
-	s.ClientLog.Mutex.RLock()
-	username := s.ClientLog.ClientTokens[token]
+	username, _ := s.Context.UserRepository.GetUsername(token)
 	clientChannel, _ := s.Context.ChannelRepository.Get(username)
-	s.ClientLog.Mutex.RUnlock()
 	
 	for {
 		res := <- clientChannel
