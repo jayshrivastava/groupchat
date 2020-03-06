@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"io"
 	"net"
@@ -13,8 +12,10 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 
+	uuid "github.com/google/uuid"
 	chat "github.com/jayshrivastava/groupchat/proto"
 	application "github.com/jayshrivastava/groupchat/server/application"
+	. "github.com/jayshrivastava/groupchat/server/context"
 )
 
 type ServerProps struct {
@@ -26,7 +27,7 @@ type Server struct {
 	chat.UnimplementedChatServer
 	Password string
 	Port     string
-	Context  *application.Context
+	Context  *Context
 }
 
 func CreateChatServer(props ServerProps) *Server {
@@ -40,10 +41,7 @@ func CreateChatServer(props ServerProps) *Server {
 }
 
 func GenerateToken() string {
-	b := make([]byte, 5)
-	rand.Read(b)
-	s := fmt.Sprintf("%X", b)
-	return s
+	return uuid.New().String()
 }
 
 func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.LoginResponse, error) {
@@ -98,15 +96,10 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 
 func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.LogoutResponse, error) {
 
-	/* TODO AUTHENTICATE REQUEST*/
-	// token, err := s.GetTokenFromContext(ctx)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Missing token provided for %s", req.Username)
-	// }
-	// if _, found := s.ClientLog.ClientTokens[token]; !found || s.ClientLog.ClientTokens[token] != req.Username {
-	// 	s.ClientLog.Mutex.Unlock()
-	// 	return nil, fmt.Errorf("Invalid Token for %s", req.Username)
-	// }
+	token, err := s.GetTokenFromContext(ctx)
+	if err != nil || !s.Context.Authenticator.Authenticate(token, req.Username) {
+		return nil, fmt.Errorf("Invalid token provided for %s", req.Username)
+	}
 
 	group, _ := s.Context.UserRepository.GetGroup(req.Username)
 
@@ -137,6 +130,10 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 func (s *Server) Stream(stream chat.Chat_StreamServer) error {
 	token, err := s.GetTokenFromContext(stream.Context())
 
+	if err != nil || !s.Context.Authenticator.IsTokenValid(token) {
+		return fmt.Errorf("Invalid Token %s", token)
+	}
+
 	if err == nil {
 		wg := sync.WaitGroup{}
 
@@ -164,10 +161,10 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 
 		username, group, message := req.Username, req.Group, req.Message
 
-		/* TODO AUTHENTICATE REQUESTS */
-		// if _, found := s.ClientLog.ClientTokens[token]; !found || s.ClientLog.ClientTokens[token] != req.Username {
-		// 	break
-		// }
+		token, err := s.GetTokenFromContext(stream.Context())
+		if err != nil || !s.Context.Authenticator.Authenticate(token, req.Username) {
+			continue
+		}
 
 		res := chat.StreamResponse{
 			Timestamp: ptypes.TimestampNow(),
