@@ -15,9 +15,10 @@ service Chat {
 }
 
 message LoginRequest {
-    string Password = 1;
-    string Username = 2;
+    string Username = 1;
+    string UserPassword = 2;
     string Group = 3; 
+    string ServerPassword = 4;
 }
 
 message LoginResponse {

@@ -20,19 +20,21 @@ import (
 )
 
 type ClientMeta struct {
-	Username string
-	Password string
-	Host     string
-	Group    string
-	Token    string
+	Username       string
+	UserPassword   string
+	ServerPassword string
+	Host           string
+	Group          string
+	Token          string
 }
 
 func Login(client chat.ChatClient, cm *ClientMeta) {
 
 	req := chat.LoginRequest{
-		Username: cm.Username,
-		Password: cm.Password,
-		Group:    cm.Group,
+		Username:       cm.Username,
+		UserPassword:   cm.UserPassword,
+		ServerPassword: cm.ServerPassword,
+		Group:          cm.Group,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

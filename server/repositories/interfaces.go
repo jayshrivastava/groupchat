@@ -17,10 +17,13 @@ type GroupRepository interface {
 }
 
 type UserRepository interface {
-	Create(username string, token string, group string) error
+	Create(username string, token string, group string, password string) error
 	GetToken(username string) (string, error)
 	GetGroup(username string) (string, error)
 	GetUsername(token string) (string, error)
 	DeleteToken(username string) error
 	DeleteGroup(username string) error
+	CheckPassword(username string, candidatePassword string) (bool, error)
+	DoesUserExist(username string) bool
+	SetUserData(username string, token string, group string) error
 }

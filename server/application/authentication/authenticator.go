@@ -14,7 +14,7 @@ func (authenticator *ApplicationAuthenticator) GenerateToken() string {
 	return uuid.New().String()
 }
 
-func (authenticator *ApplicationAuthenticator) Authenticate(candidateToken string, candidateUsername string) bool {
+func (authenticator *ApplicationAuthenticator) AuthenticateToken(candidateToken string, candidateUsername string) bool {
 	username, err := authenticator.userRepository.GetUsername(candidateToken)
 	if err != nil {
 		return false
@@ -34,7 +34,7 @@ func (authenticator *ApplicationAuthenticator) IsTokenValid(candidateToken strin
 }
 
 func (authenticator *ApplicationAuthenticator) DeleteToken(token string, username string) error {
-	if !authenticator.Authenticate(token, username) {
+	if !authenticator.AuthenticateToken(token, username) {
 		return fmt.Errorf("Invalid Username,Token pair %s,%s", username, token)
 	}
 	authenticator.userRepository.DeleteToken(token)

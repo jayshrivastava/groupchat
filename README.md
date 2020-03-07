@@ -15,12 +15,12 @@ This project leverages concurrency constructs in Go as well as socket-like bidir
 `go build -o groupchat`
 
 <b> Start Server </b>  
-`go run server.go -p <password> -h <hostname>`  
-ex. `./groupchat -s -p "password" -port "5000"`
+`go run server.go -spass <password> -h <hostname>`  
+ex. `./groupchat -s -spass "password" -port "5000"`
 
 <b> Start Client </b>   
 `./gRPC-terminal-chat -u <username> -g <groupname> -p <password> -h <hostname>`  
-ex. `./groupchat -u "jay" -g "my group" -p "password" -h "localhost:5000"`
+ex. `./groupchat -u "jay" -pass "abc" -g "my group" -spass "password"  -url "localhost:5000"`
 
 ### Development  
 

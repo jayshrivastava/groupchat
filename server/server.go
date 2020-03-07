@@ -19,22 +19,22 @@ import (
 )
 
 type ServerProps struct {
-	Password string
-	Port     string
+	ServerPassword string
+	Port           string
 }
 
 type Server struct {
 	chat.UnimplementedChatServer
-	Password string
-	Port     string
-	Context  *Context
+	ServerPassword string
+	Port           string
+	Context        *Context
 }
 
 func CreateChatServer(props ServerProps) *Server {
 	server := Server{
-		Password: props.Password,
-		Port:     props.Port,
-		Context:  application.CreateApplicationContext(),
+		ServerPassword: props.ServerPassword,
+		Port:           props.Port,
+		Context:        application.CreateApplicationContext(),
 	}
 
 	return &server
@@ -46,14 +46,21 @@ func GenerateToken() string {
 
 func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.LoginResponse, error) {
 
-	if s.Password != req.Password {
-		return nil, fmt.Errorf("Invalid server password: %s", req.Username)
+	if s.ServerPassword != req.ServerPassword {
+		return nil, fmt.Errorf("Invalid server password: %s", req.ServerPassword)
 	}
 
 	token := GenerateToken()
-
+	if s.Context.UserRepository.DoesUserExist(req.Username) {
+		if valid, _ := s.Context.UserRepository.CheckPassword(req.Username, req.UserPassword); valid {
+			s.Context.UserRepository.SetUserData(req.Username, token, req.Group)
+		} else {
+			return nil, fmt.Errorf("Invalid password for existing user %s", req.Username)
+		}
+	} else {
+		s.Context.UserRepository.Create(req.Username, token, req.Group, req.UserPassword)
+	}
 	s.Context.ChannelRepository.Create(req.Username)
-	s.Context.UserRepository.Create(req.Username, token, req.Group)
 	s.Context.GroupRepository.CreateIfNotExists(req.Group)
 	s.Context.GroupRepository.AddUserToGroup(req.Username, req.Group)
 
@@ -97,7 +104,7 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.LogoutResponse, error) {
 
 	token, err := s.GetTokenFromContext(ctx)
-	if err != nil || !s.Context.Authenticator.Authenticate(token, req.Username) {
+	if err != nil || !s.Context.Authenticator.AuthenticateToken(token, req.Username) {
 		return nil, fmt.Errorf("Invalid token provided for %s", req.Username)
 	}
 
@@ -162,7 +169,7 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 		username, group, message := req.Username, req.Group, req.Message
 
 		token, err := s.GetTokenFromContext(stream.Context())
-		if err != nil || !s.Context.Authenticator.Authenticate(token, req.Username) {
+		if err != nil || !s.Context.Authenticator.AuthenticateToken(token, req.Username) {
 			continue
 		}
 

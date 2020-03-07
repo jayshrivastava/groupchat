@@ -11,7 +11,7 @@ type ApplicationUserRepository struct {
 	RWMutex sync.RWMutex
 }
 
-func (repository *ApplicationUserRepository) Create(username string, token string, group string) error {
+func (repository *ApplicationUserRepository) Create(username string, token string, group string, password string) error {
 	repository.RWMutex.Lock()
 	defer repository.RWMutex.Unlock()
 
@@ -19,10 +19,43 @@ func (repository *ApplicationUserRepository) Create(username string, token strin
 		return fmt.Errorf("User %s username already exists", username)
 	}
 
-	repository.Users[username] = createUserData(token, group)
+	repository.Users[username] = createUserData(token, group, password)
 	repository.Tokens[token] = username
 
 	return nil
+}
+
+func (repository *ApplicationUserRepository) SetUserData(username string, token string, group string) error {
+	repository.RWMutex.Lock()
+	defer repository.RWMutex.Unlock()
+
+	if _, found := repository.Users[username]; !found {
+		return fmt.Errorf("User %s username not found", username)
+	}
+
+	repository.Users[username].Token = token
+	repository.Users[username].Group = group
+	repository.Tokens[token] = username
+
+	return nil
+}
+
+func (repository *ApplicationUserRepository) DoesUserExist(username string) bool {
+	repository.RWMutex.RLock()
+	defer repository.RWMutex.RUnlock()
+
+	_, found := repository.Users[username]
+	return found
+}
+
+func (repository *ApplicationUserRepository) CheckPassword(username string, candidatePassword string) (bool, error) {
+	if !repository.DoesUserExist(username) {
+		return false, fmt.Errorf("User %s does not exist", username)
+	}
+	repository.RWMutex.RLock()
+	defer repository.RWMutex.RUnlock()
+
+	return repository.Users[username].Password == candidatePassword, nil
 }
 
 func (repository *ApplicationUserRepository) GetToken(username string) (string, error) {
@@ -87,10 +120,11 @@ func (repository *ApplicationUserRepository) DeleteGroup(username string) error 
 
 /* Available in `repositories` package Only */
 type user struct {
-	Token string
-	Group string
+	Token    string
+	Group    string
+	Password string
 }
 
-func createUserData(token string, group string) *user {
-	return &user{token, group}
+func createUserData(token string, group string, password string) *user {
+	return &user{token, group, password}
 }
