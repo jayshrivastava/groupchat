@@ -1,10 +1,12 @@
 # terminal-chat 
-A terminal-based chat server and client written in Go using gRPC. 
+A multithreaded groupchat server/client implementation made with Go and gRPC.
 
-This project leverages concurrency constructs in Go as well as socket-like bidirectional streaming in gRPC to exchange messages between clients.
+This project leverages concurrency constructs in Go as well as socket-like bidirectional streaming in gRPC to exchange messages.
+
+The server uses a [hexagonal architecture](https://medium.com/sciforce/another-story-about-microservices-hexagonal-architecture-23db93fa52a2). Components like storage, authentication, and inbound/outbound ports are abstracted away from the core server logic using interfaces. This makes the server "agnostic to the outside world" \, and it will indivdual components easier to test in isolation (when finally get around to writing tests :sunglasses:)
 
 ### Requirements  
-- go v1.13.5
+- at least `golang v1.13.5`
 - Network must support HTTP/2
 
 ### Usage
