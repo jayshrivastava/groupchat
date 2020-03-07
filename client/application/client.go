@@ -1,4 +1,4 @@
-package client
+package application
 
 import (
 	"bufio"
@@ -12,56 +12,54 @@ import (
 	"syscall"
 	"time"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
 	. "github.com/jayshrivastava/groupchat/helpers"
 	chat "github.com/jayshrivastava/groupchat/proto"
 )
 
-type ClientMeta struct {
+type Client struct {
+	RPC chat.ChatClient
 	Username       string
 	UserPassword   string
 	ServerPassword string
-	Host           string
 	Group          string
 	Token          string
 }
 
-func Login(client chat.ChatClient, cm *ClientMeta) {
+func (client *Client) Connect() {
 
 	req := chat.LoginRequest{
-		Username:       cm.Username,
-		UserPassword:   cm.UserPassword,
-		ServerPassword: cm.ServerPassword,
-		Group:          cm.Group,
+		Username:       client.Username,
+		UserPassword:   client.UserPassword,
+		ServerPassword: client.ServerPassword,
+		Group:          client.Group,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	res, err := client.Login(ctx, &req)
+	res, err := client.RPC.Login(ctx, &req)
 
 	if err != nil {
 		Error(fmt.Errorf("Login Failed: %s", err))
 	}
 
-	cm.Token = res.Token
-
+	client.Token = res.Token
 }
 
-func Logout(client chat.ChatClient, cm *ClientMeta) {
+func (client *Client) Logout() {
 
 	req := chat.LogoutRequest{
-		Username: cm.Username,
+		Username: client.Username,
 	}
 
-	meta := metadata.New(map[string]string{"token": cm.Token})
+	meta := metadata.New(map[string]string{"token": client.Token})
 
 	ctx := metadata.NewOutgoingContext(context.Background(), meta)
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 
 	defer cancel()
-	_, err := client.Logout(ctx, &req)
+	_, err := client.RPC.Logout(ctx, &req)
 
 	if err != nil {
 		Error(fmt.Errorf("Logout Failed: %s", err))
@@ -69,7 +67,7 @@ func Logout(client chat.ChatClient, cm *ClientMeta) {
 
 }
 
-func LogoutHandler(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) {
+func (client *Client) LogoutHandler(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	sigs := make(chan os.Signal, 1)
@@ -77,27 +75,27 @@ func LogoutHandler(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) {
 
 	_ = <-sigs
 
-	Logout(client, cm)
+	client.Logout()
 	syscall.Kill(os.Getpid(), syscall.SIGTERM)
 }
 
-func Stream(client chat.ChatClient, wg *sync.WaitGroup, cm *ClientMeta) error {
+func  (client *Client) Stream(wg *sync.WaitGroup) error {
 
-	meta := metadata.New(map[string]string{"token": cm.Token})
+	meta := metadata.New(map[string]string{"token": client.Token})
 	ctx := metadata.NewOutgoingContext(context.Background(), meta)
 
-	stream, err := client.Stream(ctx)
+	stream, err := client.RPC.Stream(ctx)
 
 	if err != nil {
 		Error(fmt.Errorf("Could not connect to stream: %s", err))
 	}
 	defer stream.CloseSend()
 
-	go ClientSender(stream, cm)
-	return ClientReceiver(stream, cm)
+	go client.sender(stream)
+	return client.reciever(stream)
 }
 
-func ClientSender(stream chat.Chat_StreamClient, cm *ClientMeta) {
+func  (client *Client) sender(stream chat.Chat_StreamClient) {
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -105,15 +103,15 @@ func ClientSender(stream chat.Chat_StreamClient, cm *ClientMeta) {
 		text = strings.TrimSuffix(text, "\n")
 
 		req := chat.StreamRequest{
-			Username: cm.Username,
-			Group:    cm.Group,
+			Username: client.Username,
+			Group:    client.Group,
 			Message:  text,
 		}
 		stream.Send(&req)
 	}
 }
 
-func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
+func  (client *Client)  reciever(stream chat.Chat_StreamClient) error {
 
 	for {
 		res, err := stream.Recv()
@@ -139,29 +137,20 @@ func ClientReceiver(stream chat.Chat_StreamClient, cm *ClientMeta) error {
 	}
 }
 
-func ClientMain(clientMeta ClientMeta) {
+func (client *Client) Run() {
 
-	// register server
-	conn, err := grpc.Dial(clientMeta.Host, grpc.WithInsecure())
-	if err != nil {
-		Error(fmt.Errorf("fail to dial: %v", err))
-	}
-	defer conn.Close()
-	client := chat.NewChatClient(conn)
-
-	// client login
-	Login(client, &clientMeta)
+	client.Connect()
 
 	// create waitgroup and dispatch threads
 	wg := sync.WaitGroup{}
 
 	// register signal handler for logout
 	wg.Add(1)
-	go LogoutHandler(client, &wg, &clientMeta)
+	go client.LogoutHandler(&wg)
 
 	// streaming thread
 	wg.Add(1)
-	go Stream(client, &wg, &clientMeta)
+	go client.Stream(&wg)
 
 	wg.Wait()
 }

@@ -40,7 +40,7 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 	} else {
 		s.UserRepository.Create(req.Username, token, req.Group, req.UserPassword)
 	}
-	s.ChannelRepository.Create(req.Username)
+	s.ChannelRepository.Open(req.Username)
 	s.GroupRepository.CreateIfNotExists(req.Group)
 	s.GroupRepository.AddUserToGroup(req.Username, req.Group)
 
@@ -110,6 +110,7 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 		stream <- res
 	}
 	s.GroupRepository.RemoveUserFromGroup(req.Username, group)
+	s.ChannelRepository.Close(req.Username)
 
 	return &chat.LogoutResponse{}, nil
 }
@@ -140,11 +141,9 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 
 	for {
 		req, err := stream.Recv()
-		if err == io.EOF {
+		if err == io.EOF || err != nil {
 			break
-		} else if err != nil {
-			break
-		}
+		} 
 
 		username, group, message := req.Username, req.Group, req.Message
 
@@ -181,8 +180,7 @@ func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token 
 	username, _ := s.UserRepository.GetUsername(token)
 	clientChannel, _ := s.ChannelRepository.Get(username)
 
-	for {
-		res := <-clientChannel
+	for res := range(clientChannel) {
 		stream.Send(&res)
 	}
 }

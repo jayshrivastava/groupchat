@@ -7,9 +7,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/jayshrivastava/groupchat/client"
 	"github.com/jayshrivastava/groupchat/helpers"
-	"github.com/jayshrivastava/groupchat/server/application"
+	clientApp "github.com/jayshrivastava/groupchat/client/application"
+	serverApp "github.com/jayshrivastava/groupchat/server/application"
 	chat "github.com/jayshrivastava/groupchat/proto"
 )
 
@@ -38,19 +38,24 @@ func main() {
 	flag.Parse()
 
 	if !*flags.RunAsServer {
-		cm := client.ClientMeta{
-			Username:       *flags.Username,
-			UserPassword:   *flags.UserPassword,
-			ServerPassword: *flags.ServerPassword,
-			Host:           *flags.URL,
-			Group:          *flags.Group,
-		}
-
-		if cm.Username == "" || cm.UserPassword == "" || cm.Host == "" || cm.Group == "" || cm.ServerPassword == "" {
+		if *flags.Username == "" || *flags.UserPassword == "" || *flags.ServerPassword == "" || *flags.Group == "" || *flags.URL == "" {
 			helpers.Error(fmt.Errorf("Missing Flags"))
 		}
 
-		client.ClientMain(cm)
+		conn, err := grpc.Dial(*flags.URL, grpc.WithInsecure())
+		if err != nil {
+			helpers.Error(fmt.Errorf("fail to dial: %v", err))
+		}
+		defer conn.Close()
+		rpcClient := chat.NewChatClient(conn)
+		client := clientApp.CreateClient(
+			rpcClient,
+			 *flags.Username,
+			 *flags.UserPassword,
+			 *flags.ServerPassword,
+			 *flags.Group,
+		)
+		client.Run()
 	} else {
 
 		if *(flags.ServerPassword) == "" || *(flags.Port) == "" {
@@ -63,7 +68,7 @@ func main() {
 		}
 
 		server := grpc.NewServer()
-		chat.RegisterChatServer(server, application.CreateServer(*(flags.ServerPassword), *(flags.Port)))
+		chat.RegisterChatServer(server, serverApp.CreateServer(*(flags.ServerPassword), *(flags.Port)))
 		server.Serve(lis)
 	}
 }

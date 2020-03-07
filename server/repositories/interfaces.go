@@ -5,8 +5,9 @@ import (
 )
 
 type ChannelRepository interface {
-	Create(key string) error
+	Open(key string) error
 	Get(key string) (chan chat.StreamResponse, error)
+	Close(key string) (error)
 }
 
 type GroupRepository interface {
