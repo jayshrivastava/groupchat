@@ -3,10 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
+
+	"google.golang.org/grpc"
 
 	"github.com/jayshrivastava/groupchat/client"
 	"github.com/jayshrivastava/groupchat/helpers"
-	"github.com/jayshrivastava/groupchat/server"
+	"github.com/jayshrivastava/groupchat/server/application"
+	chat "github.com/jayshrivastava/groupchat/proto"
 )
 
 type flags struct {
@@ -48,15 +52,18 @@ func main() {
 
 		client.ClientMain(cm)
 	} else {
-		sp := server.ServerProps{
-			ServerPassword: *(flags.ServerPassword),
-			Port:           *(flags.Port),
-		}
 
-		if sp.ServerPassword == "" || sp.Port == "" {
+		if *(flags.ServerPassword) == "" || *(flags.Port) == "" {
 			helpers.Error(fmt.Errorf("Missing Flags"))
 		}
 
-		server.ServerMain(sp)
+		lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%s", *(flags.Port)))
+		if err != nil {
+			helpers.Error(fmt.Errorf("failed to listen: %v", err))
+		}
+
+		server := grpc.NewServer()
+		chat.RegisterChatServer(server, application.CreateServer(*(flags.ServerPassword), *(flags.Port)))
+		server.Serve(lis)
 	}
 }

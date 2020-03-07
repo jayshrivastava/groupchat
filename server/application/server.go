@@ -1,47 +1,27 @@
-package server
+package application
 
 import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"sync"
-
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/golang/protobuf/ptypes"
 
-	uuid "github.com/google/uuid"
 	chat "github.com/jayshrivastava/groupchat/proto"
-	application "github.com/jayshrivastava/groupchat/server/application"
-	. "github.com/jayshrivastava/groupchat/server/context"
+	authentication "github.com/jayshrivastava/groupchat/server/authentication"
+	repositories "github.com/jayshrivastava/groupchat/server/repositories"
 )
-
-type ServerProps struct {
-	ServerPassword string
-	Port           string
-}
 
 type Server struct {
 	chat.UnimplementedChatServer
 	ServerPassword string
 	Port           string
-	Context        *Context
-}
-
-func CreateChatServer(props ServerProps) *Server {
-	server := Server{
-		ServerPassword: props.ServerPassword,
-		Port:           props.Port,
-		Context:        application.CreateApplicationContext(),
-	}
-
-	return &server
-}
-
-func GenerateToken() string {
-	return uuid.New().String()
+	ChannelRepository repositories.ChannelRepository
+	GroupRepository   repositories.GroupRepository
+	UserRepository    repositories.UserRepository
+	Authenticator     authentication.Authenticator
 }
 
 func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.LoginResponse, error) {
@@ -50,19 +30,19 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 		return nil, fmt.Errorf("Invalid server password: %s", req.ServerPassword)
 	}
 
-	token := GenerateToken()
-	if s.Context.UserRepository.DoesUserExist(req.Username) {
-		if valid, _ := s.Context.UserRepository.CheckPassword(req.Username, req.UserPassword); valid {
-			s.Context.UserRepository.SetUserData(req.Username, token, req.Group)
+	token := s.Authenticator.GenerateToken()
+	if s.UserRepository.DoesUserExist(req.Username) {
+		if valid, _ := s.UserRepository.CheckPassword(req.Username, req.UserPassword); valid {
+			s.UserRepository.SetUserData(req.Username, token, req.Group)
 		} else {
 			return nil, fmt.Errorf("Invalid password for existing user %s", req.Username)
 		}
 	} else {
-		s.Context.UserRepository.Create(req.Username, token, req.Group, req.UserPassword)
+		s.UserRepository.Create(req.Username, token, req.Group, req.UserPassword)
 	}
-	s.Context.ChannelRepository.Create(req.Username)
-	s.Context.GroupRepository.CreateIfNotExists(req.Group)
-	s.Context.GroupRepository.AddUserToGroup(req.Username, req.Group)
+	s.ChannelRepository.Create(req.Username)
+	s.GroupRepository.CreateIfNotExists(req.Group)
+	s.GroupRepository.AddUserToGroup(req.Username, req.Group)
 
 	// Login notification
 	new_user_res := chat.StreamResponse{
@@ -75,11 +55,11 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 		},
 	}
 
-	groupMembers, _ := s.Context.GroupRepository.GetGroupMembers(req.Group, req.Username)
+	groupMembers, _ := s.GroupRepository.GetGroupMembers(req.Group, req.Username)
 
 	// Notify existing users about the new user
 	for _, username := range groupMembers {
-		stream, _ := s.Context.ChannelRepository.Get(username)
+		stream, _ := s.ChannelRepository.Get(username)
 		stream <- new_user_res
 	}
 
@@ -94,7 +74,7 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 				},
 			},
 		}
-		stream, _ := s.Context.ChannelRepository.Get(req.Username)
+		stream, _ := s.ChannelRepository.Get(req.Username)
 		stream <- existing_user_res
 	}
 
@@ -104,14 +84,14 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.LogoutResponse, error) {
 
 	token, err := s.GetTokenFromContext(ctx)
-	if err != nil || !s.Context.Authenticator.AuthenticateToken(token, req.Username) {
+	if err != nil || !s.Authenticator.AuthenticateToken(token, req.Username) {
 		return nil, fmt.Errorf("Invalid token provided for %s", req.Username)
 	}
 
-	group, _ := s.Context.UserRepository.GetGroup(req.Username)
+	group, _ := s.UserRepository.GetGroup(req.Username)
 
-	s.Context.UserRepository.DeleteToken(req.Username)
-	s.Context.UserRepository.DeleteGroup(req.Username)
+	s.UserRepository.DeleteToken(req.Username)
+	s.UserRepository.DeleteGroup(req.Username)
 
 	// Send logout notification
 	res := chat.StreamResponse{
@@ -124,12 +104,12 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 		},
 	}
 
-	groupMembers, _ := s.Context.GroupRepository.GetGroupMembers(group, req.Username)
+	groupMembers, _ := s.GroupRepository.GetGroupMembers(group, req.Username)
 	for _, username := range groupMembers {
-		stream, _ := s.Context.ChannelRepository.Get(username)
+		stream, _ := s.ChannelRepository.Get(username)
 		stream <- res
 	}
-	s.Context.GroupRepository.RemoveUserFromGroup(req.Username, group)
+	s.GroupRepository.RemoveUserFromGroup(req.Username, group)
 
 	return &chat.LogoutResponse{}, nil
 }
@@ -137,7 +117,7 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 func (s *Server) Stream(stream chat.Chat_StreamServer) error {
 	token, err := s.GetTokenFromContext(stream.Context())
 
-	if err != nil || !s.Context.Authenticator.IsTokenValid(token) {
+	if err != nil || !s.Authenticator.IsTokenValid(token) {
 		return fmt.Errorf("Invalid Token %s", token)
 	}
 
@@ -169,7 +149,7 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 		username, group, message := req.Username, req.Group, req.Message
 
 		token, err := s.GetTokenFromContext(stream.Context())
-		if err != nil || !s.Context.Authenticator.AuthenticateToken(token, req.Username) {
+		if err != nil || !s.Authenticator.AuthenticateToken(token, req.Username) {
 			continue
 		}
 
@@ -184,10 +164,10 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 			},
 		}
 
-		groupMembers, _ := s.Context.GroupRepository.GetGroupMembers(group, username)
+		groupMembers, _ := s.GroupRepository.GetGroupMembers(group, username)
 		for _, reciever_username := range groupMembers {
 			if username != reciever_username {
-				clientChannel, _ := s.Context.ChannelRepository.Get(reciever_username)
+				clientChannel, _ := s.ChannelRepository.Get(reciever_username)
 				clientChannel <- res
 			}
 		}
@@ -198,25 +178,13 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token string) {
 	defer wg.Done()
 
-	username, _ := s.Context.UserRepository.GetUsername(token)
-	clientChannel, _ := s.Context.ChannelRepository.Get(username)
+	username, _ := s.UserRepository.GetUsername(token)
+	clientChannel, _ := s.ChannelRepository.Get(username)
 
 	for {
 		res := <-clientChannel
 		stream.Send(&res)
 	}
-}
-
-func ServerMain(props ServerProps) {
-
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%s", props.Port))
-	if err != nil {
-		fmt.Errorf("failed to listen: %v", err)
-	}
-
-	server := grpc.NewServer()
-	chat.RegisterChatServer(server, CreateChatServer(props))
-	server.Serve(lis)
 }
 
 func (s *Server) GetTokenFromContext(ctx context.Context) (string, error) {
