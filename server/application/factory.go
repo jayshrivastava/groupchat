@@ -8,8 +8,8 @@ import (
 func CreateServer(serverPassword string, port string) *Server {
 	userRepository := repositories.CreateApplicationUserRepository()
 	server := Server{
-		ServerPassword: serverPassword,
-		Port:           port,
+		ServerPassword:    serverPassword,
+		Port:              port,
 		ChannelRepository: repositories.CreateApplicationChannelRepository(),
 		GroupRepository:   repositories.CreateApplicationGroupRepository(),
 		UserRepository:    userRepository,

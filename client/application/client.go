@@ -19,7 +19,7 @@ import (
 )
 
 type Client struct {
-	RPC chat.ChatClient
+	RPC            chat.ChatClient
 	Username       string
 	UserPassword   string
 	ServerPassword string
@@ -79,7 +79,7 @@ func (client *Client) LogoutHandler(wg *sync.WaitGroup) {
 	syscall.Kill(os.Getpid(), syscall.SIGTERM)
 }
 
-func  (client *Client) Stream(wg *sync.WaitGroup) error {
+func (client *Client) Stream(wg *sync.WaitGroup) error {
 
 	meta := metadata.New(map[string]string{"token": client.Token})
 	ctx := metadata.NewOutgoingContext(context.Background(), meta)
@@ -95,7 +95,7 @@ func  (client *Client) Stream(wg *sync.WaitGroup) error {
 	return client.reciever(stream)
 }
 
-func  (client *Client) sender(stream chat.Chat_StreamClient) {
+func (client *Client) sender(stream chat.Chat_StreamClient) {
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -111,7 +111,7 @@ func  (client *Client) sender(stream chat.Chat_StreamClient) {
 	}
 }
 
-func  (client *Client)  reciever(stream chat.Chat_StreamClient) error {
+func (client *Client) reciever(stream chat.Chat_StreamClient) error {
 
 	for {
 		res, err := stream.Recv()

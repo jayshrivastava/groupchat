@@ -28,7 +28,7 @@ func (repository *ApplicationChannelRepository) Get(key string) (chan chat.Strea
 	return repository.Channels[key], nil
 }
 
-func (repository *ApplicationChannelRepository) Close(key string) (error) {
+func (repository *ApplicationChannelRepository) Close(key string) error {
 	repository.RWMutex.RLock()
 	defer repository.RWMutex.RUnlock()
 
@@ -38,4 +38,3 @@ func (repository *ApplicationChannelRepository) Close(key string) (error) {
 	close(repository.Channels[key])
 	return nil
 }
-

@@ -11,7 +11,7 @@ type ApplicationUserRepository struct {
 	RWMutex sync.RWMutex
 }
 
-func (repository *ApplicationUserRepository) Create(username string, token string, group string, password string) error {
+func (repository *ApplicationUserRepository) Create(username string, token string, group string, password string, loggedIn bool) error {
 	repository.RWMutex.Lock()
 	defer repository.RWMutex.Unlock()
 
@@ -19,7 +19,7 @@ func (repository *ApplicationUserRepository) Create(username string, token strin
 		return fmt.Errorf("User %s username already exists", username)
 	}
 
-	repository.Users[username] = createUserData(token, group, password)
+	repository.Users[username] = createUserData(token, group, password, loggedIn)
 	repository.Tokens[token] = username
 
 	return nil
@@ -46,6 +46,16 @@ func (repository *ApplicationUserRepository) DoesUserExist(username string) bool
 
 	_, found := repository.Users[username]
 	return found
+}
+
+func (repository *ApplicationUserRepository) IsLoggedIn(username string) (bool, error) {
+	repository.RWMutex.RLock()
+	defer repository.RWMutex.RUnlock()
+
+	if _, found := repository.Users[username]; !found {
+		return false, fmt.Errorf("User %s username not found", username)
+	}
+	return repository.Users[username].LoggedIn, nil
 }
 
 func (repository *ApplicationUserRepository) CheckPassword(username string, candidatePassword string) (bool, error) {
@@ -118,13 +128,27 @@ func (repository *ApplicationUserRepository) DeleteGroup(username string) error 
 	return nil
 }
 
+func (repository *ApplicationUserRepository) LogOut(username string) error {
+	repository.RWMutex.Lock()
+	defer repository.RWMutex.Unlock()
+
+	if _, found := repository.Users[username]; !found {
+		return fmt.Errorf("User %s username not found", username)
+	}
+
+	repository.Users[username].LoggedIn = false
+
+	return nil
+}
+
 /* Available in `repositories` package Only */
 type user struct {
 	Token    string
 	Group    string
 	Password string
+	LoggedIn bool
 }
 
-func createUserData(token string, group string, password string) *user {
-	return &user{token, group, password}
+func createUserData(token string, group string, password string, loggedIn bool) *user {
+	return &user{token, group, password, loggedIn}
 }

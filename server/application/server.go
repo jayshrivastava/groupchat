@@ -3,9 +3,9 @@ package application
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/metadata"
 	"io"
 	"sync"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/golang/protobuf/ptypes"
 
@@ -16,8 +16,8 @@ import (
 
 type Server struct {
 	chat.UnimplementedChatServer
-	ServerPassword string
-	Port           string
+	ServerPassword    string
+	Port              string
 	ChannelRepository repositories.ChannelRepository
 	GroupRepository   repositories.GroupRepository
 	UserRepository    repositories.UserRepository
@@ -32,13 +32,17 @@ func (s *Server) Login(ctx context.Context, req *chat.LoginRequest) (*chat.Login
 
 	token := s.Authenticator.GenerateToken()
 	if s.UserRepository.DoesUserExist(req.Username) {
+		fmt.Println(s.UserRepository.IsLoggedIn(req.Username))
+		if loggedIn, _ := s.UserRepository.IsLoggedIn(req.Username); loggedIn {
+			return nil, fmt.Errorf("Invalid password for existing user %s", req.Username)
+		}
 		if valid, _ := s.UserRepository.CheckPassword(req.Username, req.UserPassword); valid {
 			s.UserRepository.SetUserData(req.Username, token, req.Group)
 		} else {
 			return nil, fmt.Errorf("Invalid password for existing user %s", req.Username)
 		}
 	} else {
-		s.UserRepository.Create(req.Username, token, req.Group, req.UserPassword)
+		s.UserRepository.Create(req.Username, token, req.Group, req.UserPassword, true)
 	}
 	s.ChannelRepository.Open(req.Username)
 	s.GroupRepository.CreateIfNotExists(req.Group)
@@ -92,6 +96,7 @@ func (s *Server) Logout(ctx context.Context, req *chat.LogoutRequest) (*chat.Log
 
 	s.UserRepository.DeleteToken(req.Username)
 	s.UserRepository.DeleteGroup(req.Username)
+	s.UserRepository.LogOut(req.Username)
 
 	// Send logout notification
 	res := chat.StreamResponse{
@@ -143,7 +148,7 @@ func reciever(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, toke
 		req, err := stream.Recv()
 		if err == io.EOF || err != nil {
 			break
-		} 
+		}
 
 		username, group, message := req.Username, req.Group, req.Message
 
@@ -180,7 +185,7 @@ func sender(s *Server, stream chat.Chat_StreamServer, wg *sync.WaitGroup, token 
 	username, _ := s.UserRepository.GetUsername(token)
 	clientChannel, _ := s.ChannelRepository.Get(username)
 
-	for res := range(clientChannel) {
+	for res := range clientChannel {
 		stream.Send(&res)
 	}
 }

@@ -7,7 +7,7 @@ import (
 type ChannelRepository interface {
 	Open(key string) error
 	Get(key string) (chan chat.StreamResponse, error)
-	Close(key string) (error)
+	Close(key string) error
 }
 
 type GroupRepository interface {
@@ -18,7 +18,7 @@ type GroupRepository interface {
 }
 
 type UserRepository interface {
-	Create(username string, token string, group string, password string) error
+	Create(username string, token string, group string, password string, loggedIn bool) error
 	GetToken(username string) (string, error)
 	GetGroup(username string) (string, error)
 	GetUsername(token string) (string, error)
@@ -27,4 +27,6 @@ type UserRepository interface {
 	CheckPassword(username string, candidatePassword string) (bool, error)
 	DoesUserExist(username string) bool
 	SetUserData(username string, token string, group string) error
+	IsLoggedIn(username string) (bool, error)
+	LogOut(username string) error
 }

@@ -7,10 +7,10 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/jayshrivastava/groupchat/helpers"
 	clientApp "github.com/jayshrivastava/groupchat/client/application"
-	serverApp "github.com/jayshrivastava/groupchat/server/application"
+	"github.com/jayshrivastava/groupchat/helpers"
 	chat "github.com/jayshrivastava/groupchat/proto"
+	serverApp "github.com/jayshrivastava/groupchat/server/application"
 )
 
 type flags struct {
@@ -50,10 +50,10 @@ func main() {
 		rpcClient := chat.NewChatClient(conn)
 		client := clientApp.CreateClient(
 			rpcClient,
-			 *flags.Username,
-			 *flags.UserPassword,
-			 *flags.ServerPassword,
-			 *flags.Group,
+			*flags.Username,
+			*flags.UserPassword,
+			*flags.ServerPassword,
+			*flags.Group,
 		)
 		client.Run()
 	} else {

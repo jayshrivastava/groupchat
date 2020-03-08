@@ -6,18 +6,18 @@ import (
 
 func CreateClient(
 	rpc chat.ChatClient,
-	username       string,
-	userPassword   string,
+	username string,
+	userPassword string,
 	serverPassword string,
-	group          string,
+	group string,
 ) *Client {
 	server := Client{
-		RPC: rpc,
-		Username: username,
-		UserPassword: userPassword,
+		RPC:            rpc,
+		Username:       username,
+		UserPassword:   userPassword,
 		ServerPassword: serverPassword,
-		Group: group,        
-		Token: "",  
+		Group:          group,
+		Token:          "",
 	}
 
 	return &server
