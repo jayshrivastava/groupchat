@@ -32,4 +32,20 @@ ex. `./groupchat -u "jay" -pass "abc" -g "my group" -spass "password"  -url "loc
 <b> Formatting </b>
 `go fmt ./...`
 
+<b> Docker Stuff </b>
+
+Build container
+`docker build --tag=groupchat .`
+
+Run Server:
+```
+docker run -it -p 5000:5000 groupchat:latest ./groupchat -s -spass "password" -port "5000"
+```
+
+Run Some Clients:
+```
+docker run -it -i --net=host groupchat:latest ./groupchat -u "jay" -pass "abc" -g "my group" -spass "password"  -url "localhost:5000"
+
+docker run -it -i --net=host groupchat:latest ./groupchat -u "twinkle" -pass "abc" -g "my group" -spass "password"  -url "localhost:5000"
+```
 

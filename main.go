@@ -62,7 +62,7 @@ func main() {
 			helpers.Error(fmt.Errorf("Missing Flags"))
 		}
 
-		lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%s", *(flags.Port)))
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%s", *(flags.Port)))
 		if err != nil {
 			helpers.Error(fmt.Errorf("failed to listen: %v", err))
 		}
