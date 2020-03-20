@@ -8,7 +8,7 @@ The server uses a [hexagonal architecture](https://medium.com/sciforce/another-s
 ## Usage
 ### Without Docker
 Install Dependencies  
-`go get -d ./...`
+`go mod download`
 
 Build Executable  
 `go build -o groupchat`
